@@ -3,52 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مسابقة حاسبات التفاعلية</title>
+    <title>🏆 Pro Quiz Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f0f2f5; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        button { padding: 10px 20px; font-size: 18px; cursor: pointer; border: none; border-radius: 5px; background: #007bff; color: white; margin: 10px; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        input { padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 5px; width: 80%; }
-        #status { font-weight: bold; color: #d9534f; margin-top: 20px; font-size: 20px; }
-        .admin-panel { border-top: 2px solid #eee; margin-top: 20px; padding-top: 10px; background: #fffde7; }
+        body { font-family: 'Tajawal', sans-serif; background: #0f172a; color: white; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .buzzer-active { box-shadow: 0 0 50px #22c55e; transition: 0.3s; }
+        .buzzer-locked { filter: grayscale(1); opacity: 0.5; }
+        @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .winner-anim { animation: bounce-slow 2s infinite; }
     </style>
 </head>
-<body>
+<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="card">
-        <h1>🏆 مسابقة أونلاين</h1>
+    <div id="main-card" class="glass w-full max-w-2xl rounded-3xl p-8 shadow-2xl">
         
-        <div id="setup-area">
-            <input type="text" id="username" placeholder="أدخل اسمك"><br>
-            <button onclick="createRoom()">إنشاء مجموعة جديدة</button>
-            <hr>
-            <input type="text" id="roomInput" placeholder="أدخل كود المجموعة">
-            <button onclick="joinRoom()">انضمام للمجموعة</button>
+        <div id="setup-area" class="space-y-6">
+            <h1 class="text-4xl font-bold text-center bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">نظام المسابقات الذكي</h1>
+            <input type="text" id="username" placeholder="اسمك المستعار" class="w-full bg-slate-800 border-none rounded-xl p-4 text-white focus:ring-2 focus:ring-blue-500">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
+                    <p class="mb-2 text-sm text-slate-400">للمنظمين:</p>
+                    <input type="number" id="maxPlayers" placeholder="عدد المشاركين" class="w-full bg-slate-700 rounded-lg p-2 mb-2">
+                    <input type="number" id="questionTime" placeholder="وقت السؤال (ثانية)" class="w-full bg-slate-700 rounded-lg p-2 mb-2">
+                    <button onclick="createRoom()" class="w-full bg-blue-600 hover:bg-blue-700 transition p-3 rounded-xl font-bold">إنشاء غرفة</button>
+                </div>
+                <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
+                    <p class="mb-2 text-sm text-slate-400">للمشاركين:</p>
+                    <input type="text" id="roomInput" placeholder="كود الغرفة" class="w-full bg-slate-700 rounded-lg p-2 mb-2 uppercase">
+                    <button onclick="joinRoom()" class="w-full bg-emerald-600 hover:bg-emerald-700 transition p-3 rounded-xl font-bold">انضمام</button>
+                </div>
+            </div>
         </div>
 
-        <div id="room-area" style="display:none;">
-            <h2 id="displayCode"></h2>
-            <p id="displayName"></p>
-            
-            <button id="buzzBtn" onclick="pressBuzzer()" style="width:200px; height:200px; border-radius:50%; background:#28a745; font-size:24px;">اضغط للإجابة!</button>
-            
-            <div id="status">الزرار متاح.. أسرع!</div>
-
-            <div id="admin-panel" class="admin-panel" style="display:none;">
-                <h3>لوحة تحكم الأدمن</h3>
-                <button onclick="resetBuzzer()" style="background:#dc3545;">إعادة تفعيل الزرار للكل</button>
+        <div id="room-area" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <span id="displayCode" class="bg-blue-500/20 text-blue-400 px-4 py-1 rounded-full text-sm font-mono"></span>
+                <span id="timerDisplay" class="text-2xl font-bold text-yellow-400"></span>
             </div>
+
+            <div id="questionDisplay" class="text-2xl text-center font-bold py-6 min-h-[100px] border-b border-slate-700">
+                انتظار السؤال القادم...
+            </div>
+
+            <div id="participant-view" class="flex flex-col items-center py-8">
+                <button id="buzzBtn" onclick="pressBuzzer()" class="w-48 h-48 rounded-full bg-emerald-500 text-white text-2xl font-bold shadow-lg hover:scale-105 active:scale-95 transition-all disabled:buzzer-locked">
+                    إجابة!
+                </button>
+                <p id="statusMsg" class="mt-4 text-slate-400">أسرع بالضغط!</p>
+            </div>
+
+            <div id="admin-panel" class="hidden bg-slate-800/80 p-6 rounded-2xl border border-blue-500/30">
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="newQuestion" placeholder="اكتب السؤال هنا..." class="flex-1 bg-slate-700 rounded-lg p-2 text-sm">
+                    <button onclick="sendQuestion()" class="bg-blue-600 px-4 py-2 rounded-lg text-sm">إرسال</button>
+                </div>
+                <div id="judge-actions" class="hidden flex justify-around p-4 bg-slate-900 rounded-xl">
+                    <span id="whoPressed" class="text-yellow-400"></span>
+                    <button onclick="givePoints(10)" class="bg-emerald-600 px-3 py-1 rounded text-xs">+10</button>
+                    <button onclick="givePoints(-5)" class="bg-red-600 px-3 py-1 rounded text-xs">-5</button>
+                    <button onclick="resetBuzzer()" class="bg-slate-600 px-3 py-1 rounded text-xs">تصفير</button>
+                </div>
+                <button onclick="showWinner()" class="w-full mt-4 bg-purple-600 p-2 rounded-lg text-sm font-bold uppercase tracking-widest">عرض الفائز النهائي 🏆</button>
+            </div>
+
+            <div class="mt-6">
+                <h4 class="text-sm text-slate-500 mb-2">لوحة المتصدرين:</h4>
+                <div id="leaderboard" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <div id="winner-screen" class="hidden text-center space-y-6 py-20">
+            <h1 class="text-6xl winner-anim">👑</h1>
+            <h2 class="text-4xl font-bold">البطل هو:</h2>
+            <div id="winnerName" class="text-5xl text-yellow-400 font-black"></div>
+            <button onclick="location.reload()" class="text-blue-400 underline">ابدأ مسابقة جديدة</button>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, push, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
-        // ******************************************
-        // 1. ضع الـ Config الخاص بك هنا بالكامل
-        const firebaseConfig = {
+        // حط الـ Config بتاعك هنا
+         const firebaseConfig = {
     apiKey: "AIzaSyC7ovcq2UUgk9iY5r_kOdN1k38sIwmLJz4",
     authDomain: "competitionapp-14dd2.firebaseapp.com",
 databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
@@ -57,87 +97,174 @@ databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
     messagingSenderId: "111940102162",
     appId: "1:111940102162:web:a74ee801c6fa371b0c10cb"
   };
-        // ******************************************
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        let myName = "";
-        let currentRoom = "";
-        let isOwner = false;
+        let myName, currentRoom, isOwner = false, timerInterval;
 
-        // وظيفة إنشاء الغرفة
+        // إنشاء غرفة
         window.createRoom = function() {
             myName = document.getElementById('username').value;
-            if(!myName) return alert("اكتب اسمك الأول");
-            
+            const max = parseInt(document.getElementById('maxPlayers').value) || 5;
+            const qTime = parseInt(document.getElementById('questionTime').value) || 15;
+            if(!myName) return alert("الاسم مطلوب");
+
             currentRoom = Math.random().toString(36).substring(2, 7).toUpperCase();
             isOwner = true;
-            
-            // تهيئة الغرفة في الداتابيز
+
             set(ref(db, 'rooms/' + currentRoom), {
                 owner: myName,
-                buzzerLocked: false,
-                pressedBy: ""
+                maxPlayers: max,
+                timeLimit: qTime,
+                gameStarted: false,
+                currentQuestion: "في انتظار السؤال الأول...",
+                buzzerLocked: true,
+                pressedBy: "",
+                timer: 0,
+                showWinner: false
             });
-
-            showRoom();
+            
+            enterRoom();
         };
 
-        // وظيفة الانضمام
+        // انضمام لغرفة
         window.joinRoom = function() {
             myName = document.getElementById('username').value;
             currentRoom = document.getElementById('roomInput').value.toUpperCase();
-            if(!myName || !currentRoom) return alert("أدخل اسمك وكود الغرفة");
-            
-            showRoom();
+            if(!myName || !currentRoom) return alert("بيانات ناقصة");
+
+            const roomRef = ref(db, 'rooms/' + currentRoom);
+            onValue(roomRef, (snap) => {
+                const data = snap.val();
+                if(!data) return alert("الغرفة غير موجودة");
+                
+                // فحص العدد وصلاحية الدخول
+                const players = data.players ? Object.keys(data.players).length : 0;
+                if(data.gameStarted && !data.players[myName]) return alert("المسابقة بدأت بالفعل، لا يمكن الدخول!");
+                if(players >= data.maxPlayers && !data.players?.[myName]) return alert("الغرفة ممتلئة!");
+
+                // إضافة اللاعب لو مش موجود
+                if(!data.players?.[myName]) {
+                    update(ref(db, `rooms/${currentRoom}/players/${myName}`), { score: 0 });
+                }
+                enterRoom();
+            }, { onlyOnce: true });
         };
 
-        function showRoom() {
-            document.getElementById('setup-area').style.display = 'none';
-            document.getElementById('room-area').style.display = 'block';
-            document.getElementById('displayCode').innerText = "كود الغرفة: " + currentRoom;
-            document.getElementById('displayName').innerText = "أهلاً يا " + myName;
-            
-            if(isOwner) document.getElementById('admin-panel').style.display = 'block';
+        function enterRoom() {
+            document.getElementById('setup-area').classList.add('hidden');
+            document.getElementById('room-area').classList.remove('hidden');
+            document.getElementById('displayCode').innerText = "ROOM: " + currentRoom;
 
-            // الاستماع لتغييرات الغرفة لحظياً
-            const roomRef = ref(db, 'rooms/' + currentRoom);
-            onValue(roomRef, (snapshot) => {
-                const data = snapshot.val();
-                if(data) {
-                    const btn = document.getElementById('buzzBtn');
-                    const status = document.getElementById('status');
-                    
-                    if(data.buzzerLocked) {
-                        btn.disabled = true;
-                        status.innerText = "🚨 ضغط عليها: " + data.pressedBy;
-                    } else {
-                        btn.disabled = false;
-                        status.innerText = "الزرار متاح.. أسرع!";
+            if(isOwner) {
+                document.getElementById('admin-panel').classList.remove('hidden');
+                document.getElementById('participant-view').classList.add('hidden');
+            }
+
+            // الاستماع اللحظي
+            onValue(ref(db, 'rooms/' + currentRoom), (snap) => {
+                const data = snap.val();
+                if(!data) return;
+
+                if(data.showWinner) return renderWinner(data.players);
+
+                document.getElementById('questionDisplay').innerText = data.currentQuestion;
+                document.getElementById('timerDisplay').innerText = data.timer > 0 ? data.timer + "s" : "⌛";
+                
+                // تحديث حالة الزر
+                const btn = document.getElementById('buzzBtn');
+                btn.disabled = data.buzzerLocked;
+                if(data.buzzerLocked && data.pressedBy) {
+                    document.getElementById('statusMsg').innerText = "🚨 ضغط: " + data.pressedBy;
+                    if(isOwner) {
+                        document.getElementById('judge-actions').classList.remove('hidden');
+                        document.getElementById('whoPressed').innerText = "المجيب: " + data.pressedBy;
                     }
+                } else {
+                    document.getElementById('statusMsg').innerText = "أسرع بالضغط!";
+                    document.getElementById('judge-actions').classList.add('hidden');
                 }
+
+                renderLeaderboard(data.players);
             });
         }
 
-        // وظيفة الضغط على الزرار
+        window.sendQuestion = function() {
+            const q = document.getElementById('newQuestion').value;
+            const roomRef = ref(db, 'rooms/' + currentRoom);
+            
+            update(roomRef, {
+                currentQuestion: q,
+                buzzerLocked: false,
+                pressedBy: "",
+                gameStarted: true // غلق الغرفة بعد أول سؤال
+            });
+
+            // بدء التايمر
+            onValue(ref(db, 'rooms/' + currentRoom + '/timeLimit'), (s) => {
+                let timeLeft = s.val();
+                clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    update(ref(db, 'rooms/' + currentRoom), { timer: timeLeft });
+                    if(timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        update(ref(db, 'rooms/' + currentRoom), { buzzerLocked: true, timer: 0 });
+                    }
+                }, 1000);
+            }, {onlyOnce: true});
+        };
+
         window.pressBuzzer = function() {
             const roomRef = ref(db, 'rooms/' + currentRoom);
-            // تحديث الداتابيز: قفل الزرار وكتابة اسمك
-            update(roomRef, {
-                buzzerLocked: true,
-                pressedBy: myName
+            runTransaction(roomRef, (currentData) => {
+                if (currentData && currentData.buzzerLocked === false) {
+                    currentData.buzzerLocked = true;
+                    currentData.pressedBy = myName;
+                    clearInterval(timerInterval);
+                    currentData.timer = 0;
+                }
+                return currentData;
             });
         };
 
-        // وظيفة إعادة التفعيل (للأدمن فقط)
-        window.resetBuzzer = function() {
-            const roomRef = ref(db, 'rooms/' + currentRoom);
-            update(roomRef, {
-                buzzerLocked: false,
-                pressedBy: ""
-            });
+        window.givePoints = function(pts) {
+            onValue(ref(db, 'rooms/' + currentRoom + '/pressedBy'), (s) => {
+                const user = s.val();
+                const scoreRef = ref(db, `rooms/${currentRoom}/players/${user}/score`);
+                runTransaction(scoreRef, (current) => (current || 0) + pts);
+                resetBuzzer();
+            }, {onlyOnce: true});
         };
+
+        window.resetBuzzer = function() {
+            update(ref(db, 'rooms/' + currentRoom), { buzzerLocked: false, pressedBy: "", timer: 0 });
+            clearInterval(timerInterval);
+        };
+
+        function renderLeaderboard(players) {
+            const board = document.getElementById('leaderboard');
+            board.innerHTML = "";
+            if(!players) return;
+            Object.entries(players).sort((a,b) => b[1].score - a[1].score).forEach(([name, data]) => {
+                board.innerHTML += `<div class="flex justify-between bg-slate-800 p-2 rounded-lg border-l-4 border-blue-500">
+                    <span>${name}</span><span class="font-bold text-emerald-400">${data.score}</span>
+                </div>`;
+            });
+        }
+
+        window.showWinner = function() {
+            update(ref(db, 'rooms/' + currentRoom), { showWinner: true });
+        };
+
+        function renderWinner(players) {
+            document.getElementById('room-area').classList.add('hidden');
+            document.getElementById('winner-screen').classList.remove('hidden');
+            const winner = Object.entries(players).sort((a,b) => b[1].score - a[1].score)[0];
+            document.getElementById('winnerName').innerText = winner[0] + " 🎉";
+            document.body.style.background = "linear-gradient(to bottom, #1e1b4b, #4338ca)";
+        }
     </script>
 </body>
 </html>
