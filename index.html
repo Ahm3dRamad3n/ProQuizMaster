@@ -130,28 +130,41 @@ databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
 
         // انضمام لغرفة
         window.joinRoom = function() {
-            myName = document.getElementById('username').value;
-            currentRoom = document.getElementById('roomInput').value.toUpperCase();
-            if(!myName || !currentRoom) return alert("بيانات ناقصة");
+    myName = document.getElementById('username').value;
+    currentRoom = document.getElementById('roomInput').value.toUpperCase();
+    if(!myName || !currentRoom) return alert("بيانات ناقصة");
 
-            const roomRef = ref(db, 'rooms/' + currentRoom);
-            onValue(roomRef, (snap) => {
-                const data = snap.val();
-                if(!data) return alert("الغرفة غير موجودة");
-                
-                // فحص العدد وصلاحية الدخول
-                const players = data.players ? Object.keys(data.players).length : 0;
-                if(data.gameStarted && !data.players[myName]) return alert("المسابقة بدأت بالفعل، لا يمكن الدخول!");
-                if(players >= data.maxPlayers && !data.players?.[myName]) return alert("الغرفة ممتلئة!");
+    const roomRef = ref(db, 'rooms/' + currentRoom);
+    onValue(roomRef, (snap) => {
+        const data = snap.val();
+        if(!data) return alert("الغرفة غير موجودة");
+        
+        // 1. فحص هل اللاعب موجود مسبقاً (استخدام ?. يمنع الـ Error لو players مش موجودة)
+        const isAlreadyIn = data.players?.[myName]; 
+        const playersCount = data.players ? Object.keys(data.players).length : 0;
 
-                // إضافة اللاعب لو مش موجود
-                if(!data.players?.[myName]) {
-                    update(ref(db, `rooms/${currentRoom}/players/${myName}`), { score: 0 });
-                }
-                enterRoom();
-            }, { onlyOnce: true });
-        };
+        // 2. منع الدخول لو المسابقة بدأت
+        if (data.gameStarted && !isAlreadyIn) {
+            console.log("Access Denied: Game Started");
+            alert("المسابقة بدأت بالفعل، لا يمكن الدخول!");
+            return; // الخروج من الوظيفة تماماً
+        }
 
+        // 3. منع الدخول لو الغرفة ممتلئة
+        if(playersCount >= data.maxPlayers && !isAlreadyIn) {
+            console.log("Access Denied: Room Full");
+            alert("الغرفة ممتلئة!");
+            return;
+        }
+
+        // 4. إضافة اللاعب الجديد فقط
+        if(!isAlreadyIn) {
+            update(ref(db, `rooms/${currentRoom}/players/${myName}`), { score: 0 });
+        }
+        
+        enterRoom();
+    }, { onlyOnce: true });
+};
         function enterRoom() {
             document.getElementById('setup-area').classList.add('hidden');
             document.getElementById('room-area').classList.remove('hidden');
