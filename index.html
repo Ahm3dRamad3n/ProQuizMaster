@@ -47,7 +47,7 @@
             <div id="questionDisplay" class="text-2xl text-center font-bold py-6 min-h-[100px] border-b border-slate-700">
                 انتظار السؤال القادم...
             </div>
-
+<div id="statusMessageDisplay" class="text-center text-emerald-400 font-bold py-2 h-8"></div>
             <div id="participant-view" class="flex flex-col items-center py-8">
                 <button id="buzzBtn" onclick="pressBuzzer()" class="w-48 h-48 rounded-full bg-emerald-500 text-white text-2xl font-bold shadow-lg hover:scale-105 active:scale-95 transition-all disabled:buzzer-locked">
                     إجابة!
@@ -184,7 +184,8 @@ databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
 
                 document.getElementById('questionDisplay').innerText = data.currentQuestion;
                 document.getElementById('timerDisplay').innerText = data.timer > 0 ? data.timer + "s" : "⌛";
-                
+                document.getElementById('statusMessageDisplay').innerText = data.statusMessage || "";                
+
                 // تحديث حالة الزر
                 const btn = document.getElementById('buzzBtn');
                 btn.disabled = data.buzzerLocked;
@@ -204,6 +205,7 @@ databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
         }
 
         window.sendQuestion = function() {
+/*
             const q = document.getElementById('newQuestion').value;
             const roomRef = ref(db, 'rooms/' + currentRoom);
             
@@ -213,7 +215,19 @@ databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
                 pressedBy: "",
                 gameStarted: true // غلق الغرفة بعد أول سؤال
             });
-
+*/
+const q = document.getElementById('newQuestion').value;
+    const roomRef = ref(db, 'rooms/' + currentRoom);
+    
+    update(roomRef, {
+        currentQuestion: q,
+        buzzerLocked: false,
+        pressedBy: "",
+        attempts: {}, // نُصفر قائمة المحاولات مع كل سؤال جديد
+        statusMessage: "🏃 أسرع بالضغط!", 
+        gameStarted: true,
+        timer: parseInt(document.getElementById('questionTime').value) || 15
+    });
             // بدء التايمر
             onValue(ref(db, 'rooms/' + currentRoom + '/timeLimit'), (s) => {
                 let timeLeft = s.val();
@@ -228,7 +242,7 @@ databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
                 }, 1000);
             }, {onlyOnce: true});
         };
-
+/*
         window.pressBuzzer = function() {
             const roomRef = ref(db, 'rooms/' + currentRoom);
             runTransaction(roomRef, (currentData) => {
@@ -241,7 +255,34 @@ databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
                 return currentData;
             });
         };
+*/
+window.pressBuzzer = function() {
+    const roomRef = ref(db, 'rooms/' + currentRoom);
+    
+    // أولاً نفتح الداتابيز نشوف هل العضو ده ضغط قبل كدة؟
+    onValue(ref(db, `rooms/${currentRoom}/attempts/${myName}`), (snap) => {
+        if(snap.val()) {
+            alert("لقد استخدمت محاولتك في هذا السؤال بالفعل!");
+            return;
+        }
 
+        // لو ملمسوش، ينفذ عملية الضغط ويقفل الزرار
+        runTransaction(roomRef, (currentData) => {
+            if (currentData && currentData.buzzerLocked === false) {
+                currentData.buzzerLocked = true;
+                currentData.pressedBy = myName;
+                
+                // نسجل إنه استهلك محاولته
+                if(!currentData.attempts) currentData.attempts = {};
+                currentData.attempts[myName] = true; 
+                
+                currentData.timer = 0;
+            }
+            return currentData;
+        });
+    }, { onlyOnce: true });
+};
+/*
         window.givePoints = function(pts) {
             onValue(ref(db, 'rooms/' + currentRoom + '/pressedBy'), (s) => {
                 const user = s.val();
@@ -250,6 +291,27 @@ databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
                 resetBuzzer();
             }, {onlyOnce: true});
         };
+*/
+window.givePoints = function(pts) {
+    onValue(ref(db, 'rooms/' + currentRoom + '/pressedBy'), (s) => {
+        const user = s.val();
+        if(!user) return;
+
+        // تحديث السكور
+        const scoreRef = ref(db, `rooms/${currentRoom}/players/${user}/score`);
+        runTransaction(scoreRef, (current) => (current || 0) + pts);
+
+        const roomRef = ref(db, 'rooms/' + currentRoom);
+        if (pts > 0) {
+            // لو الإجابة صح (+10): اقفل الزرار تماماً لحد السؤال الجاي
+            update(roomRef, { buzzerLocked: true, statusMessage: "انتهى السؤال بإجابة صحيحة!" });
+        } else {
+            // لو غلط (-5) أو تصفير: افتح الزرار للباقي
+            // لاحظ إننا مش هنمسح "attempts" فالمتسابق اللي غلط مش هيعرف يضغط تاني
+            update(roomRef, { buzzerLocked: false, pressedBy: "" });
+        }
+    }, {onlyOnce: true});
+};
 
         window.resetBuzzer = function() {
             update(ref(db, 'rooms/' + currentRoom), { buzzerLocked: false, pressedBy: "", timer: 0 });
