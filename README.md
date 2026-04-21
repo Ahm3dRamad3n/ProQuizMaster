@@ -7,7 +7,7 @@
 ## 🚀 عرض حي للمشروع (Live Demo)
 
 يمكنك تجربة التطبيق مباشرة من خلال الرابط التالي:  
-**[🔗 اضغط هنا لفتح التطبيق](https://ahm3dramad3n.github.io/CompetitionApp/)**
+**[🔗 اضغط هنا لفتح التطبيق](https://ahm3dramad3n.github.io/ProQuizMaster/)**
 
 -----
 
