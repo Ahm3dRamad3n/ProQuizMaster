@@ -55,29 +55,40 @@
                 <p id="statusMsg" class="mt-4 text-slate-400">أسرع بالضغط!</p>
             </div>
 
-            <div id="admin-panel" class="hidden bg-slate-800/80 p-6 rounded-2xl border border-blue-500/30">
-                <div class="space-y-3 mb-4">
-                    <input type="text" id="newQuestion" placeholder="اكتب السؤال هنا..." class="w-full bg-slate-700 rounded-lg p-2 text-sm text-right">
+            <div id="admin-panel" class="hidden bg-slate-800/80 p-4 md:p-6 rounded-2xl border border-blue-500/30">
+            <div class="space-y-3 mb-4">
+                <input type="text" id="newQuestion" placeholder="اكتب السؤال هنا..." class="w-full bg-slate-700 rounded-lg p-2 text-sm text-right">
+                
+                <div class="flex flex-col md:flex-row md:items-center gap-3">
+                    <input type="text" id="questionImage" placeholder="ضع رابط الصورة هنا..." class="flex-1 bg-slate-700 rounded-lg p-2 text-sm text-right outline-none focus:ring-1 focus:ring-blue-500">
+                    
+                    <span class="hidden md:block text-slate-500 text-xs font-bold">أو</span>
                     
                     <div class="flex items-center gap-2">
-                        <input type="text" id="questionImage" placeholder="ضع رابط الصورة هنا..." class="flex-1 bg-slate-700 rounded-lg p-2 text-sm text-right">
-                        
-                        <span class="text-slate-500 text-xs font-bold">أو</span>
+                        <span class="md:hidden text-slate-500 text-xs font-bold">أو ارفع ملف:</span>
                         <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileUpload(this)">
-                        <button onclick="document.getElementById('fileInput').click()" class="bg-slate-600 hover:bg-slate-500 px-3 py-2 rounded-lg text-xs flex items-center gap-1 whitespace-nowrap">
+                        <button onclick="document.getElementById('fileInput').click()" class="flex-1 md:flex-none bg-slate-600 hover:bg-slate-500 px-4 py-2 rounded-lg text-xs flex items-center justify-center gap-2 whitespace-nowrap">
                             📁 رفع صورة
                         </button>
                     </div>
-                    <button id="sendBtn" onclick="sendQuestion()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg font-bold text-sm">إرسال السؤال</button>
                 </div>
-                <div id="judge-actions" class="hidden flex justify-around p-4 bg-slate-900 rounded-xl">
-                    <span id="whoPressed" class="text-yellow-400"></span>
-                    <button onclick="givePoints(10)" class="bg-emerald-600 px-3 py-1 rounded text-xs">+10</button>
-                    <button onclick="givePoints(-5)" class="bg-red-600 px-3 py-1 rounded text-xs">-5</button>
-                    <button onclick="resetBuzzer()" class="bg-slate-600 px-3 py-1 rounded text-xs">تصفير</button>
-                </div>
-                <button onclick="showWinner()" class="w-full mt-4 bg-purple-600 p-2 rounded-lg text-sm font-bold uppercase tracking-widest">عرض الفائز النهائي 🏆</button>
+                
+                <button id="sendBtn" onclick="sendQuestion()" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold text-sm transition-all shadow-lg active:scale-95">
+                    إرسال السؤال 🚀
+                </button>
             </div>
+
+            <div id="judge-actions" class="hidden flex justify-around p-4 bg-slate-900 rounded-xl gap-2">
+                <span id="whoPressed" class="text-yellow-400 text-xs self-center"></span>
+                <button onclick="givePoints(10)" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded text-xs font-bold transition-colors">+10</button>
+                <button onclick="givePoints(-5)" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded text-xs font-bold transition-colors">-5</button>
+                <button onclick="resetBuzzer()" class="bg-slate-600 hover:bg-slate-500 px-4 py-2 rounded text-xs font-bold transition-colors">تصفير</button>
+            </div>
+            
+            <button onclick="showWinner()" class="w-full mt-4 bg-purple-600 hover:bg-purple-700 p-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all">
+                عرض الفائز النهائي 🏆
+            </button>
+        </div>
 
             <div class="mt-6">
                 <h4 class="text-sm text-slate-500 mb-2">لوحة المتصدرين:</h4>
