@@ -2,23 +2,21 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update, push, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
-        // حط الـ Config بتاعك هنا
-    const firebaseConfig = {
-         apiKey: "AIzaSyC7ovcq2UUgk9iY5r_kOdN1k38sIwmLJz4",
-         authDomain: "competitionapp-14dd2.firebaseapp.com",
-         databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
-         projectId: "competitionapp-14dd2",
-         storageBucket: "competitionapp-14dd2.firebasestorage.app",
-         messagingSenderId: "111940102162",
-         appId: "1:111940102162:web:a74ee801c6fa371b0c10cb"
-    };
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7ovcq2UUgk9iY5r_kOdN1k38sIwmLJz4",
+            authDomain: "competitionapp-14dd2.firebaseapp.com",
+            databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
+            projectId: "competitionapp-14dd2",
+            storageBucket: "competitionapp-14dd2.firebasestorage.app",
+            messagingSenderId: "111940102162",
+            appId: "1:111940102162:web:a74ee801c6fa371b0c10cb"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
         let myName, currentRoom, isOwner = false, timerInterval;
 
-        // إنشاء غرفة
         window.createRoom = function() {
             myName = document.getElementById('username').value;
             const max = parseInt(document.getElementById('maxPlayers').value) || 5;
@@ -43,43 +41,39 @@
             enterRoom();
         };
 
-        // انضمام لغرفة
         window.joinRoom = function() {
-        myName = document.getElementById('username').value;
-        currentRoom = document.getElementById('roomInput').value.toUpperCase();
-        if(!myName || !currentRoom) return alert("بيانات ناقصة");
+            myName = document.getElementById('username').value;
+            currentRoom = document.getElementById('roomInput').value.toUpperCase();
+            if(!myName || !currentRoom) return alert("بيانات ناقصة");
 
-    const roomRef = ref(db, 'rooms/' + currentRoom);
-    onValue(roomRef, (snap) => {
-        const data = snap.val();
-        if(!data) return alert("الغرفة غير موجودة");
-        
-        // 1. فحص هل اللاعب موجود مسبقاً (استخدام ?. يمنع الـ Error لو players مش موجودة)
-        const isAlreadyIn = data.players?.[myName]; 
-        const playersCount = data.players ? Object.keys(data.players).length : 0;
+            const roomRef = ref(db, 'rooms/' + currentRoom);
+            onValue(roomRef, (snap) => {
+                const data = snap.val();
+                if(!data) return alert("الغرفة غير موجودة");
+                
+                const isAlreadyIn = data.players?.[myName]; 
+                const playersCount = data.players ? Object.keys(data.players).length : 0;
 
-        // 2. منع الدخول لو المسابقة بدأت
-        if (data.gameStarted && !isAlreadyIn) {
-            console.log("Access Denied: Game Started");
-            alert("المسابقة بدأت بالفعل، لا يمكن الدخول!");
-            return; 
-        }
+                if (data.gameStarted && !isAlreadyIn) {
+                    console.log("Access Denied: Game Started");
+                    alert("المسابقة بدأت بالفعل، لا يمكن الدخول!");
+                    return; 
+                }
 
-        // 3. منع الدخول لو الغرفة ممتلئة
-        if(playersCount >= data.maxPlayers && !isAlreadyIn) {
-            console.log("Access Denied: Room Full");
-            alert("الغرفة ممتلئة!");
-            return;
-        }
+                if(playersCount >= data.maxPlayers && !isAlreadyIn) {
+                    console.log("Access Denied: Room Full");
+                    alert("الغرفة ممتلئة!");
+                    return;
+                }
 
-        // 4. إضافة اللاعب الجديد فقط
-        if(!isAlreadyIn) {
-            update(ref(db, `rooms/${currentRoom}/players/${myName}`), { score: 0 });
-        }
-        
-        enterRoom();
-    }, { onlyOnce: true });
-};
+                if(!isAlreadyIn) {
+                    update(ref(db, `rooms/${currentRoom}/players/${myName}`), { score: 0 });
+                }
+                
+                enterRoom();
+            }, { onlyOnce: true });
+        };
+
         function enterRoom() {
             document.getElementById('setup-area').classList.add('hidden');
             document.getElementById('room-area').classList.remove('hidden');
@@ -90,17 +84,26 @@
                 document.getElementById('participant-view').classList.add('hidden');
             }
 
-            // الاستماع اللحظي (النسخة المطورة بالألوان والذكاء التلقائي)
             onValue(ref(db, 'rooms/' + currentRoom), (snap) => {
                 const data = snap.val();
                 if(!data) return;
 
                 if(data.showWinner) return renderWinner(data.players);
 
+                const imgContainer = document.getElementById('imageContainer');
+                const displayImg = document.getElementById('displayImg');
+
+                if(data.questionImage) {
+                    displayImg.src = data.questionImage;
+                    imgContainer.classList.remove('hidden');
+                } else {
+                    displayImg.src = "";
+                    imgContainer.classList.add('hidden');
+                }
+
                 const qDisplay = document.getElementById('questionDisplay');
                 qDisplay.innerText = data.currentQuestion;
 
-                // --- منطق تغيير الألوان بناءً على النص ---
                 if (data.currentQuestion.includes("✅")) {
                     qDisplay.style.color = "#22c55e"; // أخضر نجاح
                 } else if (data.currentQuestion.includes("❌")) {
@@ -111,11 +114,9 @@
 
                 document.getElementById('timerDisplay').innerText = data.timer > 0 ? data.timer + "s" : "⌛";
                 
-                // --- فحص تلقائي: هل الجميع فشل في الإجابة؟ ---
                 const totalPlayers = data.players ? Object.keys(data.players).length : 0;
                 const totalAttempts = data.attempts ? Object.keys(data.attempts).length : 0;
 
-                // لو الكل حاول ومحدش جاوب صح (والزرار لسه متاح في الداتابيز)
                 if (totalAttempts >= totalPlayers && totalPlayers > 0 && !data.buzzerLocked && !data.currentQuestion.includes("✅")) {
                     if (!data.currentQuestion.includes("❌")) { 
                         update(ref(db, 'rooms/' + currentRoom), {
@@ -144,21 +145,39 @@
             });
         }
 
+        window.handleFileUpload = function(input) {
+            const file = input.files[0];
+            if (file) {
+                if (file.size > 2 * 1024 * 1024) { // تنبيه لو الصورة أكبر من 2 ميجا
+                    alert("الصورة كبيرة جداً! اختر صورة أقل من 2 ميجابايت.");
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // نضع النتيجة (الرابط الطويل) في خانة الـ URL
+                    document.getElementById('questionImage').value = e.target.result;
+                    alert("✅ تم تجهيز الصورة للرفع!");
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
         window.sendQuestion = function() {
 
         document.getElementById('questionDisplay').style.color = "white";
         const q = document.getElementById('newQuestion').value;
+        const imgUrl = document.getElementById('questionImage').value;
         const roomRef = ref(db, 'rooms/' + currentRoom);
     
-    update(roomRef, {
-        currentQuestion: q,
-        buzzerLocked: false,
-        pressedBy: "",
-        attempts: {}, // نُصفر قائمة المحاولات مع كل سؤال جديد
-        gameStarted: true,
-        timer: parseInt(document.getElementById('questionTime').value) || 15
-    });
-            // بدء التايمر
+        update(roomRef, {
+            currentQuestion: q,
+            buzzerLocked: false,
+            questionImage: imgUrl || "",
+            pressedBy: "",
+            attempts: {}, 
+            gameStarted: true,
+            timer: parseInt(document.getElementById('questionTime').value) || 15
+        });
             onValue(ref(db, 'rooms/' + currentRoom + '/timeLimit'), (s) => {
                 let timeLeft = s.val();
                 clearInterval(timerInterval);
@@ -172,23 +191,21 @@
                 }, 1000);
             }, {onlyOnce: true});
         };
+
 window.pressBuzzer = function() {
     const roomRef = ref(db, 'rooms/' + currentRoom);
     
-    // أولاً نفتح الداتابيز نشوف هل العضو ده ضغط قبل كدة؟
     onValue(ref(db, `rooms/${currentRoom}/attempts/${myName}`), (snap) => {
         if(snap.val()) {
             alert("لقد استخدمت محاولتك في هذا السؤال بالفعل!");
             return;
         }
 
-        // لو ملمسوش، ينفذ عملية الضغط ويقفل الزرار
         runTransaction(roomRef, (currentData) => {
             if (currentData && currentData.buzzerLocked === false) {
                 currentData.buzzerLocked = true;
                 currentData.pressedBy = myName;
                 
-                // نسجل إنه استهلك محاولته
                 if(!currentData.attempts) currentData.attempts = {};
                 currentData.attempts[myName] = true; 
                 
@@ -204,20 +221,17 @@ window.givePoints = function(pts) {
         const user = s.val();
         if(!user) return;
 
-        // تحديث السكور
         const scoreRef = ref(db, `rooms/${currentRoom}/players/${user}/score`);
         runTransaction(scoreRef, (current) => (current || 0) + pts);
 
         const roomRef = ref(db, 'rooms/' + currentRoom);
         if (pts > 0) {
-            // لو الإجابة صح (+10): اقفل الزرار تماماً لحد السؤال الجاي
             update(roomRef, { 
         currentQuestion: "✅ انتهى السؤال بإجابة صحيحة! جاري تجهيز السؤال القادم... 🏆",
         buzzerLocked: true ,
 pressedBy: ""
     });
         } else {
-            // لو غلط (-5) أو تصفير: افتح الزرار للباقي
             update(roomRef, { buzzerLocked: false, pressedBy: "" });
         }
     }, {onlyOnce: true});

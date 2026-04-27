@@ -41,6 +41,10 @@
                 <span id="timerDisplay" class="text-2xl font-bold text-yellow-400"></span>
             </div>
 
+            <div id="imageContainer" class="hidden w-full flex justify-center mb-4">
+                <img id="displayImg" src="" class="max-h-60 rounded-xl shadow-lg border border-slate-700 object-contain bg-slate-900">
+            </div>
+
             <div id="questionDisplay" class="text-2xl text-center font-bold py-6 min-h-[100px] border-b border-slate-700">
                 انتظار السؤال القادم...
             </div>
@@ -52,9 +56,18 @@
             </div>
 
             <div id="admin-panel" class="hidden bg-slate-800/80 p-6 rounded-2xl border border-blue-500/30">
-                <div class="flex gap-2 mb-4">
-                    <input type="text" id="newQuestion" placeholder="اكتب السؤال هنا..." class="flex-1 bg-slate-700 rounded-lg p-2 text-sm">
-                    <button onclick="sendQuestion()" class="bg-blue-600 px-4 py-2 rounded-lg text-sm">إرسال</button>
+                <div class="space-y-3 mb-4">
+                    <input type="text" id="newQuestion" placeholder="اكتب السؤال هنا..." class="w-full bg-slate-700 rounded-lg p-2 text-sm text-right">
+                    
+                    <div class="flex gap-2">
+                        <input type="text" id="questionImage" placeholder="ضع رابط الصورة هنا..." class="flex-1 bg-slate-700 rounded-lg p-2 text-sm text-right">
+                        
+                        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileUpload(this)">
+                        <button onclick="document.getElementById('fileInput').click()" class="bg-slate-600 hover:bg-slate-500 px-3 py-2 rounded-lg text-xs flex items-center gap-1 whitespace-nowrap">
+                            📁 رفع صورة
+                        </button>
+                    </div>
+                    <button onclick="sendQuestion()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg font-bold text-sm">إرسال السؤال</button>
                 </div>
                 <div id="judge-actions" class="hidden flex justify-around p-4 bg-slate-900 rounded-xl">
                     <span id="whoPressed" class="text-yellow-400"></span>
@@ -79,16 +92,16 @@
         </div>
     </div>
     <script type="module" src="script.js"></script>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('./service-worker.js').then(function(registration) {
-      console.log('ServiceWorker registration successful with scope: ', registration.scope);
-    }, function(err) {
-      console.log('ServiceWorker registration failed: ', err);
+    <script>
+    if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./service-worker.js').then(function(registration) {
+        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        }, function(err) {
+        console.log('ServiceWorker registration failed: ', err);
+        });
     });
-  });
-}
-</script>
+    }
+    </script>
 </body>
 </html>
