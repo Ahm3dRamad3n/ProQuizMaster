@@ -216,25 +216,36 @@
         };
 
 window.pressBuzzer = function() {
-    const roomRef = ref(db, 'rooms/' + currentRoom);
-    
+    const btn = document.getElementById('buzzBtn');
+    if(btn) btn.disabled = true;
+
     onValue(ref(db, `rooms/${currentRoom}/attempts/${myName}`), (snap) => {
         if(snap.val()) {
             alert("لقد استخدمت محاولتك في هذا السؤال بالفعل!");
             return;
         }
-
-        runTransaction(roomRef, (currentData) => {
-            if (currentData && currentData.buzzerLocked === false) {
-                currentData.buzzerLocked = true;
-                currentData.pressedBy = myName;
-                
-                if(!currentData.attempts) currentData.attempts = {};
-                currentData.attempts[myName] = true; 
-                
-                currentData.timer = 0;
+        const pressedByRef = ref(db, `rooms/${currentRoom}/pressedBy`);
+        
+        runTransaction(pressedByRef, (currentValue) => {
+            if (!currentValue || currentValue === "") {
+                return myName;
             }
-            return currentData;
+            return;
+        }).then((result) => {
+            
+            if (result.committed && result.snapshot.val() === myName) {
+                
+                const updates = {};
+                updates['buzzerLocked'] = true;
+                updates[`attempts/${myName}`] = true;
+                updates['timer'] = 0;
+
+                update(ref(db, `rooms/${currentRoom}`), updates).catch(err => {
+                    console.error("خطأ في تحديث بيانات الغرفة:", err);
+                });
+            } else {
+                if(btn) btn.disabled = false; 
+            }
         });
     }, { onlyOnce: true });
 };
