@@ -1,6 +1,7 @@
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update, push, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyC7ovcq2UUgk9iY5r_kOdN1k38sIwmLJz4",
@@ -14,6 +15,17 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        const auth = getAuth(app);
+        let myUid = null;
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                myUid = user.uid; 
+                console.log("Logged in securely with ID:", myUid);
+            } else {
+                signInAnonymously(auth).catch((error) => console.error("Auth Error:", error));
+            }
+        });
 
         let myName, currentRoom, isOwner = false, timerInterval;
 
@@ -28,6 +40,7 @@
 
             set(ref(db, 'rooms/' + currentRoom), {
                 owner: myName,
+                adminToken: myUid,
                 maxPlayers: max,
                 timeLimit: qTime,
                 gameStarted: false,
@@ -146,34 +159,31 @@
         }
 
         window.handleFileUpload = function(input) {
-    const file = input.files[0];
-    const sendBtn = document.getElementById('sendBtn'); 
+            const file = input.files[0];
+            const sendBtn = document.getElementById('sendBtn'); 
+            if (file) {
+                sendBtn.disabled = true;
+                sendBtn.innerText = "جاري تجهيز الصورة... ⏳";
+                sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
-    if (file) {
-        sendBtn.disabled = true;
-        sendBtn.innerText = "جاري تجهيز الصورة... ⏳";
-        sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
-
-        if (file.size > 2 * 1024 * 1024) {
-            alert("الصورة كبيرة جداً! اختر صورة أقل من 2 ميجابايت.");
-
-            sendBtn.disabled = false;
-            sendBtn.innerText = "إرسال السؤال 🚀";
-            sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('questionImage').value = e.target.result;
-            
-            sendBtn.disabled = false;
-            sendBtn.innerText = "إرسال السؤال 🚀";
-            sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                if (file.size > 2 * 1024 * 1024) { // تنبيه لو الصورة أكبر من 2 ميجا
+                    alert("الصورة كبيرة جداً! اختر صورة أقل من 2 ميجابايت.");
+                    sendBtn.disabled = false;
+                    sendBtn.innerText = "إرسال السؤال 🚀";
+                    sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // نضع النتيجة (الرابط الطويل) في خانة الـ URL
+                    document.getElementById('questionImage').value = e.target.result;
+                    sendBtn.disabled = false;
+                    sendBtn.innerText = "إرسال السؤال 🚀";
+                    sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                };
+                reader.readAsDataURL(file);
+            }
         };
-        reader.readAsDataURL(file);
-    }
-};
 
         window.sendQuestion = function() {
 
@@ -273,8 +283,10 @@ pressedBy: ""
         function renderWinner(players) {
             document.getElementById('room-area').classList.add('hidden');
             document.getElementById('winner-screen').classList.remove('hidden');
-            const winner = Object.entries(players).sort((a,b) => b[1].score - a[1].score)[0];
-            document.getElementById('winnerName').innerText = winner[0] + " 🎉";
+            const rankedPlayers = Object.entries(players || {}).sort((a,b) => b[1].score - a[1].score);
+            const topScore = rankedPlayers[0]?.[1]?.score ?? 0;
+            const winners = rankedPlayers.filter(([, data]) => data.score === topScore).map(([name]) => name);
+            document.getElementById('winnerName').innerHTML = winners.map((name) => `<div>${name} 🎉</div>`).join('');
             document.body.style.background = "linear-gradient(to bottom, #1e1b4b, #4338ca)";
         }
     
