@@ -151,6 +151,17 @@
                 const isAlreadyIn = Boolean(data.players?.[myUid]);
                 const playersCount = data.players ? Object.keys(data.players).length : 0;
 
+                // Duplicate displayName check (case-insensitive) for other UIDs
+                const existingPlayers = data.players || {};
+                const lowerRequested = myName.toLowerCase();
+                for (const [uid, pdata] of Object.entries(existingPlayers)) {
+                    const otherName = (pdata?.displayName || "").toString().trim().toLowerCase();
+                    if (otherName && uid !== myUid && otherName === lowerRequested) {
+                        alert("هذا الاسم مستخدم بالفعل، يرجى اختيار اسم آخر");
+                        return;
+                    }
+                }
+
                 if (data.gameStarted && !isAlreadyIn) {
                     console.log("Access Denied: Game Started");
                     alert("المسابقة بدأت بالفعل، لا يمكن الدخول!");
@@ -195,7 +206,7 @@
                 const data = snap.val();
                 if(!data) return;
 
-                if(data.showWinner) return renderWinner(data.players);
+                if(data.showWinner) return renderWinner(data.players, data.adminToken);
 
                 const imgContainer = document.getElementById('imageContainer');
                 const displayImg = document.getElementById('displayImg');
@@ -250,7 +261,7 @@
                     document.getElementById('judge-actions').classList.add('hidden');
                 }
 
-                renderLeaderboard(data.players);
+                renderLeaderboard(data.players, data.adminToken);
             });
         }
 
@@ -360,7 +371,6 @@ window.pressBuzzer = async function() {
         if (result.committed && result.snapshot.val() === myUid) {
             await update(ref(db, `rooms/${currentRoom}`), {
                 buzzerLocked: true,
-                pressedByUid: myUid,
                 pressedByName: myName,
                 [`attempts/${myUid}`]: true,
                 timer: 0
@@ -425,12 +435,13 @@ window.givePoints = async function(pts) {
             })();
         };
 
-        function renderLeaderboard(players) {
+        function renderLeaderboard(players, adminUid) {
             const board = document.getElementById('leaderboard');
             if(!board) return;
             board.replaceChildren();
             if(!players) return;
             Object.entries(players)
+                .filter(([uid]) => uid !== adminUid)
                 .sort(([, a], [, b]) => (b?.score ?? 0) - (a?.score ?? 0))
                 .forEach(([, data]) => {
                     board.appendChild(renderPlayerRow(data?.displayName || "مشارك", data?.score ?? 0));
@@ -452,12 +463,14 @@ window.givePoints = async function(pts) {
             }
         };
 
-        function renderWinner(players) {
+        function renderWinner(players, adminUid) {
             document.getElementById('room-area').classList.add('hidden');
             document.getElementById('winner-screen').classList.remove('hidden');
-            const rankedPlayers = Object.entries(players || {}).sort((a,b) => b[1].score - a[1].score);
+            const rankedPlayers = Object.entries(players || {})
+                .filter(([uid]) => uid !== adminUid)
+                .sort((a,b) => b[1].score - a[1].score);
             const topScore = rankedPlayers[0]?.[1]?.score ?? 0;
-            const winners = rankedPlayers.filter(([, data]) => data.score === topScore).map(([, data]) => data.displayName || "مشارك");
+            const winners = rankedPlayers.filter(([, data]) => (data.score ?? 0) === topScore).map(([, data]) => data.displayName || "مشارك");
             const winnerName = document.getElementById('winnerName');
             if (winnerName) {
                 winnerName.replaceChildren();
