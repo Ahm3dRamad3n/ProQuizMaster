@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pwa-cache-v1';
+const CACHE_NAME = 'pwa-cache';
 const urlsToCache = [
   './',
   './index.html',
@@ -18,17 +18,24 @@ self.addEventListener('install', event => {
         return cache.addAll(urlsToCache);
       })
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
+    fetch(event.request)
+      .then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              cache.put(event.request, responseToCache);
+            });
         }
-        return fetch(event.request);
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request);
       })
   );
 });
@@ -46,4 +53,5 @@ self.addEventListener('activate', event => {
       );
     })
   );
+  return self.clients.claim();
 });
