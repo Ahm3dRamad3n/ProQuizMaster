@@ -1,485 +1,585 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import {
+  getDatabase,
+  ref,
+  set,
+  onValue,
+  update,
+  remove,
+  get,
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics.js";
 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, push, runTransaction, get } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyC7ovcq2UUgk9iY5r_kOdN1k38sIwmLJz4",
-            authDomain: "competitionapp-14dd2.firebaseapp.com",
-            databaseURL: "https://competitionapp-14dd2-default-rtdb.firebaseio.com/",
-            projectId: "competitionapp-14dd2",
-            storageBucket: "competitionapp-14dd2.firebasestorage.app",
-            messagingSenderId: "111940102162",
-            appId: "1:111940102162:web:a74ee801c6fa371b0c10cb"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const auth = getAuth(app);
-        let myUid = null;
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                myUid = user.uid; 
-                console.log("Logged in securely with ID:", myUid);
-            } else {
-                signInAnonymously(auth).catch((error) => console.error("Auth Error:", error));
-            }
-        });
-
-        let myName, currentRoom, isOwner = false, timerInterval;
-
-        function safeText(value) {
-            return value == null ? "" : String(value);
-        }
-
-        async function requireAuth() {
-            if (myUid) {
-                return myUid;
-            }
-
-            if (auth.currentUser) {
-                myUid = auth.currentUser.uid;
-                return myUid;
-            }
-
-            await new Promise((resolve) => {
-                const unsubscribe = onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        myUid = user.uid;
-                        unsubscribe();
-                        resolve();
-                    }
-                });
-            });
-
-            if (!myUid) {
-                throw new Error("Authentication not ready");
-            }
-
-            return myUid;
-        }
-
-        async function getRoomSnapshot() {
-            if (!currentRoom) {
-                throw new Error("No active room");
-            }
-
-            return get(ref(db, 'rooms/' + currentRoom));
-        }
-
-        async function requireAdminRoom() {
-            await requireAuth();
-            const snap = await getRoomSnapshot();
-            const room = snap.val();
-
-            if (!room) {
-                throw new Error("Room not found");
-            }
-
-            if (room.adminToken !== myUid) {
-                throw new Error("Unauthorized");
-            }
-
-            return room;
-        }
-
-        function renderPlayerRow(name, score) {
-            const row = document.createElement('div');
-            row.className = 'flex justify-between bg-slate-800 p-2 rounded-lg border-l-4 border-blue-500';
-
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = safeText(name);
-
-            const scoreSpan = document.createElement('span');
-            scoreSpan.className = 'font-bold text-emerald-400';
-            scoreSpan.textContent = String(score ?? 0);
-
-            row.append(nameSpan, scoreSpan);
-            return row;
-        }
-
-        window.createRoom = async function() {
-            try {
-                await requireAuth();
-                myName = document.getElementById('username').value.trim();
-                const max = parseInt(document.getElementById('maxPlayers').value, 10) || 5;
-                const qTime = parseInt(document.getElementById('questionTime').value, 10) || 15;
-                if(!myName) return alert("الاسم مطلوب");
-
-                currentRoom = Math.random().toString(36).substring(2, 7).toUpperCase();
-                isOwner = true;
-
-                await set(ref(db, 'rooms/' + currentRoom), {
-                    owner: myName,
-                    adminToken: myUid,
-                    maxPlayers: max,
-                    timeLimit: qTime,
-                    gameStarted: false,
-                    currentQuestion: "في انتظار السؤال الأول...",
-                    buzzerLocked: true,
-                    pressedByUid: "",
-                    pressedByName: "",
-                    timer: 0,
-                    showWinner: false
-                });
-
-                await set(ref(db, `rooms/${currentRoom}/players/${myUid}`), {
-                    displayName: myName,
-                    score: 0
-                });
-
-                enterRoom();
-            } catch (error) {
-                console.error("Failed to create room:", error);
-                alert("تعذر إنشاء الغرفة. تحقق من الاتصال ثم أعد المحاولة.");
-            }
-        };
-
-        window.joinRoom = async function() {
-            try {
-                await requireAuth();
-                myName = document.getElementById('username').value.trim();
-                currentRoom = document.getElementById('roomInput').value.trim().toUpperCase();
-                if(!myName || !currentRoom) return alert("بيانات ناقصة");
-
-                const roomRef = ref(db, 'rooms/' + currentRoom);
-                const snap = await get(roomRef);
-                const data = snap.val();
-                if(!data) return alert("الغرفة غير موجودة");
-
-                const isAlreadyIn = Boolean(data.players?.[myUid]);
-                const playersCount = data.players ? Object.keys(data.players).length : 0;
-
-                // Duplicate displayName check (case-insensitive) for other UIDs
-                const existingPlayers = data.players || {};
-                const lowerRequested = myName.toLowerCase();
-                for (const [uid, pdata] of Object.entries(existingPlayers)) {
-                    const otherName = (pdata?.displayName || "").toString().trim().toLowerCase();
-                    if (otherName && uid !== myUid && otherName === lowerRequested) {
-                        alert("هذا الاسم مستخدم بالفعل، يرجى اختيار اسم آخر");
-                        return;
-                    }
-                }
-
-                if (data.gameStarted && !isAlreadyIn) {
-                    console.log("Access Denied: Game Started");
-                    alert("المسابقة بدأت بالفعل، لا يمكن الدخول!");
-                    return;
-                }
-
-                if(playersCount >= data.maxPlayers && !isAlreadyIn) {
-                    console.log("Access Denied: Room Full");
-                    alert("الغرفة ممتلئة!");
-                    return;
-                }
-
-                if(!isAlreadyIn) {
-                    await set(ref(db, `rooms/${currentRoom}/players/${myUid}`), {
-                        displayName: myName,
-                        score: 0
-                    });
-                } else {
-                    await update(ref(db, `rooms/${currentRoom}/players/${myUid}`), {
-                        displayName: myName
-                    });
-                }
-
-                enterRoom();
-            } catch (error) {
-                console.error("Failed to join room:", error);
-                alert("تعذر الانضمام إلى الغرفة. تحقق من الاتصال ثم أعد المحاولة.");
-            }
-        };
-
-        function enterRoom() {
-            document.getElementById('setup-area').classList.add('hidden');
-            document.getElementById('room-area').classList.remove('hidden');
-            document.getElementById('displayCode').textContent = "ROOM: " + currentRoom;
-
-            if(isOwner) {
-                document.getElementById('admin-panel').classList.remove('hidden');
-                document.getElementById('participant-view').classList.add('hidden');
-            }
-
-            onValue(ref(db, 'rooms/' + currentRoom), (snap) => {
-                const data = snap.val();
-                if(!data) return;
-
-                if(data.showWinner) return renderWinner(data.players, data.adminToken);
-
-                const imgContainer = document.getElementById('imageContainer');
-                const displayImg = document.getElementById('displayImg');
-
-                if(data.questionImage) {
-                    displayImg.src = data.questionImage;
-                    imgContainer.classList.remove('hidden');
-                } else {
-                    displayImg.src = "";
-                    imgContainer.classList.add('hidden');
-                }
-
-                const qDisplay = document.getElementById('questionDisplay');
-                qDisplay.textContent = data.currentQuestion;
-
-                if (data.currentQuestion.includes("✅")) {
-                    qDisplay.style.color = "#22c55e"; // أخضر نجاح
-                } else if (data.currentQuestion.includes("❌")) {
-                    qDisplay.style.color = "#ef4444"; // أحمر فشل
-                } else {
-                    qDisplay.style.color = "white";    // أبيض للسؤال العادي
-                }
-
-                document.getElementById('timerDisplay').textContent = data.timer > 0 ? data.timer + "s" : "⌛";
-                
-                const totalPlayers = data.players ? Object.keys(data.players).length : 0;
-                const totalAttempts = data.attempts ? Object.keys(data.attempts).length : 0;
-
-                if (totalAttempts >= totalPlayers && totalPlayers > 0 && !data.buzzerLocked && !data.currentQuestion.includes("✅")) {
-                    if (!data.currentQuestion.includes("❌")) { 
-                        update(ref(db, 'rooms/' + currentRoom), {
-                            currentQuestion: "❌ لم يستطع أحد الإجابة بشكل صحيح! استعد للسؤال القادم..",
-                            buzzerLocked: true
-                        });
-                    }
-                }
-
-                // --- تحديث حالة الزر والرسائل التوضيحية ---
-                const btn = document.getElementById('buzzBtn');
-                if (btn) {
-                    btn.disabled = data.buzzerLocked;
-                }
-
-                if(data.buzzerLocked && data.pressedByName) {
-                    document.getElementById('statusMsg').textContent = "🚨 ضغط: " + data.pressedByName;
-                    if(isOwner) {
-                        document.getElementById('judge-actions').classList.remove('hidden');
-                        document.getElementById('whoPressed').textContent = "المجيب: " + data.pressedByName;
-                    }
-                } else {
-                    document.getElementById('statusMsg').textContent = "أسرع بالضغط!";
-                    document.getElementById('judge-actions').classList.add('hidden');
-                }
-
-                renderLeaderboard(data.players, data.adminToken);
-            });
-        }
-
-        window.handleFileUpload = function(input) {
-            const file = input.files[0];
-            const sendBtn = document.getElementById('sendBtn'); 
-            if (file) {
-                sendBtn.disabled = true;
-                sendBtn.innerText = "جاري تجهيز الصورة... ⏳";
-                sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
-
-                if (file.size > 2 * 1024 * 1024) { // تنبيه لو الصورة أكبر من 2 ميجا
-                    alert("الصورة كبيرة جداً! اختر صورة أقل من 2 ميجابايت.");
-                    sendBtn.disabled = false;
-                    sendBtn.innerText = "إرسال السؤال 🚀";
-                    sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    // نضع النتيجة (الرابط الطويل) في خانة الـ URL
-                    document.getElementById('questionImage').value = e.target.result;
-                    sendBtn.disabled = false;
-                    sendBtn.innerText = "إرسال السؤال 🚀";
-                    sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-
-        window.sendQuestion = async function() {
-            document.getElementById('questionDisplay').style.color = "white";
-
-            try {
-                const room = await requireAdminRoom();
-                if (room.showWinner) {
-                    alert("المسابقة انتهت بالفعل. لا يمكن إرسال سؤال جديد بعد إعلان الفائز.");
-                    return;
-                }
-
-                const q = document.getElementById('newQuestion').value.trim();
-                const imgUrl = document.getElementById('questionImage').value.trim();
-                const roomRef = ref(db, 'rooms/' + currentRoom);
-                const timeLimit = parseInt(document.getElementById('questionTime').value, 10) || 15;
-
-                clearInterval(timerInterval);
-                await update(roomRef, {
-                    currentQuestion: q,
-                    buzzerLocked: false,
-                    questionImage: imgUrl || "",
-                    pressedByUid: "",
-                    pressedByName: "",
-                    attempts: {},
-                    gameStarted: true,
-                    timer: timeLimit
-                });
-
-                let timeLeft = timeLimit;
-                timerInterval = setInterval(async () => {
-                    timeLeft--;
-                    try {
-                        await update(ref(db, 'rooms/' + currentRoom), { timer: timeLeft });
-                        if(timeLeft <= 0) {
-                            clearInterval(timerInterval);
-                            await update(ref(db, 'rooms/' + currentRoom), { buzzerLocked: true, timer: 0 });
-                        }
-                    } catch (error) {
-                        console.error("Timer update failed:", error);
-                        clearInterval(timerInterval);
-                    }
-                }, 1000);
-            } catch (error) {
-                console.error("Failed to send question:", error);
-                alert("تعذر إرسال السؤال أو لا تملك صلاحية المنظم.");
-            }
-        };
-
-window.pressBuzzer = async function() {
-    const btn = document.getElementById('buzzBtn');
-    if(btn) btn.disabled = true;
-
-    try {
-        await requireAuth();
-        const roomSnap = await getRoomSnapshot();
-        const room = roomSnap.val();
-
-        if (!room || room.showWinner || room.buzzerLocked) {
-            if(btn) btn.disabled = false;
-            return;
-        }
-
-        const attemptSnap = await get(ref(db, `rooms/${currentRoom}/attempts/${myUid}`));
-        if(attemptSnap.val()) {
-            alert("لقد استخدمت محاولتك في هذا السؤال بالفعل!");
-            if(btn) btn.disabled = false;
-            return;
-        }
-
-        const pressedByRef = ref(db, `rooms/${currentRoom}/pressedByUid`);
-        const result = await runTransaction(pressedByRef, (currentValue) => {
-            if (!currentValue || currentValue === "") {
-                return myUid;
-            }
-            return;
-        });
-
-        if (result.committed && result.snapshot.val() === myUid) {
-            await update(ref(db, `rooms/${currentRoom}`), {
-                buzzerLocked: true,
-                pressedByName: myName,
-                [`attempts/${myUid}`]: true,
-                timer: 0
-            });
-        } else if(btn) {
-            btn.disabled = false;
-        }
-    } catch (error) {
-        console.error("Failed to press buzzer:", error);
-        if(btn) btn.disabled = false;
-        alert("تعذر تسجيل الإجابة. تحقق من الاتصال ثم أعد المحاولة.");
-    }
+const firebaseConfig = {
+  apiKey: "AIzaSyDEnxivKgtiOKM1hlSlyqrUCpsE6czIDD0",
+  authDomain: "genius-competitions.firebaseapp.com",
+  databaseURL: "https://genius-competitions-default-rtdb.firebaseio.com",
+  projectId: "genius-competitions",
+  storageBucket: "genius-competitions.firebasestorage.app",
+  messagingSenderId: "973361156681",
+  appId: "1:973361156681:web:240961bded965bfea46598",
+  measurementId: "G-D0N00M781J",
 };
 
-window.givePoints = async function(pts) {
-    try {
-        const room = await requireAdminRoom();
-        if (room.showWinner) {
-            alert("المسابقة انتهت بالفعل. لا يمكن تعديل النقاط بعد إعلان الفائز.");
-            return;
-        }
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+const analytics = getAnalytics(app);
 
-        const pressedSnap = await get(ref(db, 'rooms/' + currentRoom + '/pressedByUid'));
-        const userId = pressedSnap.val();
-        if(!userId) return;
+let myUid = null;
+let myName = "";
+let currentRoom = "";
+let isOwner = false;
+let localRoomData = null;
+let questionBank = [];
 
-        const scoreRef = ref(db, `rooms/${currentRoom}/players/${userId}/score`);
-        await runTransaction(scoreRef, (current) => (current || 0) + pts);
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    myUid = user.uid;
+    console.log("Logged in securely with ID:", myUid);
+  } else {
+    signInAnonymously(auth).catch((error) =>
+      console.error("Auth Error:", error),
+    );
+  }
+});
 
-        const roomRef = ref(db, 'rooms/' + currentRoom);
-        if (pts > 0) {
-            await update(roomRef, {
-                currentQuestion: "✅ انتهى السؤال بإجابة صحيحة! جاري تجهيز السؤال القادم... 🏆",
-                buzzerLocked: true,
-                pressedByUid: "",
-                pressedByName: ""
-            });
+function safeText(value) {
+  return value == null ? "" : String(value);
+}
+
+async function requireAuth() {
+  if (myUid) return myUid;
+  if (auth.currentUser) return (myUid = auth.currentUser.uid);
+  await new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        myUid = user.uid;
+        unsubscribe();
+        resolve();
+      }
+    });
+  });
+  return myUid;
+}
+
+window.createRoom = async function () {
+  try {
+    await requireAuth();
+    myName = document.getElementById("username").value.trim();
+    const max =
+      (parseInt(document.getElementById("maxPlayers").value, 10) || 4) + 1;
+    const qTime =
+      parseInt(document.getElementById("questionTime").value, 10) || 15;
+    if (!myName) return alert("الاسم مطلوب");
+
+    currentRoom = Math.random().toString(36).substring(2, 7).toUpperCase();
+    isOwner = true;
+
+    await set(ref(db, "rooms/" + currentRoom), {
+      owner: myName,
+      adminToken: myUid,
+      maxPlayers: max,
+      timeLimit: qTime,
+      status: "IDLE",
+      currentQuestion: "في انتظار بدء المسابقة...",
+      timer: 0,
+      timerState: "STOPPED",
+      showWinner: false,
+    });
+
+    await set(ref(db, `rooms/${currentRoom}/players/${myUid}`), {
+      displayName: myName,
+      score: 0,
+    });
+    enterRoom();
+    startAdminTimerLoop();
+  } catch (error) {
+    alert("تعذر إنشاء الغرفة.");
+  }
+};
+
+window.joinRoom = async function () {
+  try {
+    await requireAuth();
+    myName = document.getElementById("username").value.trim();
+    currentRoom = document
+      .getElementById("roomInput")
+      .value.trim()
+      .toUpperCase();
+    if (!myName || !currentRoom) return alert("بيانات ناقصة");
+
+    const roomRef = ref(db, "rooms/" + currentRoom);
+    const snap = await get(roomRef);
+    const data = snap.val();
+    if (!data) return alert("الغرفة غير موجودة");
+
+    const isAlreadyIn = Boolean(data.players?.[myUid]);
+    const playersCount = data.players ? Object.keys(data.players).length : 0;
+
+    if (data.status !== "IDLE" && !isAlreadyIn)
+      return alert("المسابقة بدأت بالفعل!");
+    if (playersCount >= data.maxPlayers && !isAlreadyIn)
+      return alert("الغرفة ممتلئة!");
+
+    if (!isAlreadyIn) {
+      await set(ref(db, `rooms/${currentRoom}/players/${myUid}`), {
+        displayName: myName,
+        score: 0,
+      });
+    } else {
+      await update(ref(db, `rooms/${currentRoom}/players/${myUid}`), {
+        displayName: myName,
+      });
+    }
+    enterRoom();
+  } catch (error) {
+    alert("تعذر الانضمام.");
+  }
+};
+
+function enterRoom() {
+  document.getElementById("setup-area").classList.add("hidden");
+  document.getElementById("room-area").classList.remove("hidden");
+  document.getElementById("displayCode").textContent = "ROOM: " + currentRoom;
+
+  if (isOwner) {
+    document.getElementById("admin-panel").classList.remove("hidden");
+    document.getElementById("participant-view").classList.add("hidden");
+  }
+
+  onValue(ref(db, "rooms/" + currentRoom), (snap) => {
+    localRoomData = snap.val();
+    if (!localRoomData) return;
+    updateUI();
+  });
+}
+
+// ================= إدارة بنك الأسئلة =================
+window.addQuestionToBank = function () {
+  const qInput = document.getElementById("newQuestion");
+  const imgInput = document.getElementById("questionImage");
+  const qText = qInput.value.trim();
+  const imgUrl = imgInput.value.trim();
+
+  if (qText) {
+    questionBank.push({ text: qText, image: imgUrl });
+    qInput.value = "";
+    imgInput.value = "";
+    renderBankList();
+    updateUI();
+  } else {
+    alert("اكتب نص السؤال أولاً لإضافته للبنك!");
+  }
+};
+
+function renderBankList() {
+  const list = document.getElementById("bankQuestionsList");
+  if (questionBank.length === 0) {
+    list.innerHTML =
+      '<p class="text-xs text-slate-500 text-center py-2">البنك فارغ. أضف أسئلة أعلاه للبدء.</p>';
+    return;
+  }
+  list.innerHTML = questionBank
+    .map(
+      (q, index) =>
+        `<div class="bg-slate-800 p-2 rounded text-sm text-slate-300 flex justify-between items-center gap-2">
+            <span class="truncate flex-1">${index + 1}. ${q.text} ${q.image ? "🖼️" : ""}</span>
+            <button onclick="removeQuestion(${index})" class="text-red-400 hover:text-red-300 text-xs shrink-0">🗑️</button>
+        </div>`,
+    )
+    .join("");
+}
+
+window.removeQuestion = function (index) {
+  questionBank.splice(index, 1);
+  renderBankList();
+  updateUI();
+};
+
+window.sendNextBankQuestion = function () {
+  if (questionBank.length > 0) {
+    const nextQ = questionBank.shift();
+    renderBankList();
+    sendQuestionLogic(nextQ.text, nextQ.image);
+  }
+};
+
+window.sendQuestion = function () {
+  const q = document.getElementById("newQuestion").value.trim();
+  const imgUrl = document.getElementById("questionImage").value.trim();
+  if (q) {
+    sendQuestionLogic(q, imgUrl);
+    document.getElementById("newQuestion").value = "";
+    document.getElementById("questionImage").value = "";
+  }
+};
+
+async function sendQuestionLogic(questionText, imgUrl) {
+  if (localRoomData.showWinner) return alert("المسابقة انتهت.");
+  const timeLimit =
+    parseInt(document.getElementById("questionTime").value, 10) ||
+    localRoomData.timeLimit ||
+    15;
+
+  await update(ref(db, "rooms/" + currentRoom), {
+    currentQuestion: questionText,
+    questionImage: imgUrl || "",
+    status: "ACTIVE",
+    timer: timeLimit,
+    timerState: "RUNNING",
+    queue: null,
+    attempts: null,
+  });
+}
+
+// ================= نظام الطابور (Buzzer & Queue) =================
+window.pressBuzzer = async function () {
+  if (
+    !localRoomData ||
+    localRoomData.status !== "ACTIVE" ||
+    localRoomData.showWinner
+  )
+    return;
+
+  const btn = document.getElementById("buzzBtn");
+  if (btn) btn.disabled = true;
+
+  const now = Date.now();
+  try {
+    await update(ref(db, `rooms/${currentRoom}`), {
+      [`queue/${myUid}`]: now,
+      [`attempts/${myUid}`]: true,
+    });
+  } catch (err) {
+    if (btn) btn.disabled = false;
+  }
+};
+
+window.givePoints = async function (pts) {
+  if (!isOwner || !localRoomData.queue) return;
+
+  const sortedQueue = Object.entries(localRoomData.queue).sort(
+    (a, b) => a[1] - b[1],
+  );
+  const activeUid = sortedQueue[0][0];
+
+  if (pts !== 0) {
+    const scoreRef = ref(db, `rooms/${currentRoom}/players/${activeUid}/score`);
+    const snap = await get(scoreRef);
+    await set(scoreRef, (snap.val() || 0) + pts);
+  }
+
+  if (pts > 0) {
+    await update(ref(db, "rooms/" + currentRoom), {
+      status: "RESOLVED_CORRECT",
+      queue: null,
+      timerState: "STOPPED",
+    });
+  } else {
+    await remove(ref(db, `rooms/${currentRoom}/queue/${activeUid}`));
+
+    const updatedSnap = await get(ref(db, "rooms/" + currentRoom));
+    const updatedRoom = updatedSnap.val();
+
+    const hasMoreInQueue =
+      updatedRoom.queue && Object.keys(updatedRoom.queue).length > 0;
+    const totalPlayers = updatedRoom.players
+      ? Object.keys(updatedRoom.players).length - 1
+      : 0;
+    const totalAttempts = updatedRoom.attempts
+      ? Object.keys(updatedRoom.attempts).length
+      : 0;
+
+    if (!hasMoreInQueue) {
+      // الإضافة الجديدة: فحص هل كل اللاعبين استنفذوا محاولاتهم
+      if (totalAttempts >= totalPlayers && totalPlayers > 0) {
+        await update(ref(db, "rooms/" + currentRoom), {
+          status: "ALL_WRONG",
+          timer: 0,
+          timerState: "STOPPED",
+        });
+      } else if (updatedRoom.timer <= 0) {
+        await update(ref(db, "rooms/" + currentRoom), { status: "TIME_UP" });
+      }
+    }
+  }
+};
+
+window.reloadTimer = async function () {
+  if (isOwner) {
+    const timeLimit =
+      parseInt(document.getElementById("questionTime").value, 10) ||
+      localRoomData.timeLimit ||
+      15;
+    await update(ref(db, "rooms/" + currentRoom), {
+      timer: timeLimit,
+      timerState: "RUNNING",
+      status: "ACTIVE",
+      queue: null,
+    });
+  }
+};
+
+function startAdminTimerLoop() {
+  setInterval(async () => {
+    if (!isOwner || !localRoomData) return;
+
+    const queueExists =
+      localRoomData.queue && Object.keys(localRoomData.queue).length > 0;
+
+    if (localRoomData.status === "ACTIVE") {
+      if (queueExists && localRoomData.timerState === "RUNNING") {
+        await update(ref(db, "rooms/" + currentRoom), { timerState: "PAUSED" });
+      } else if (
+        !queueExists &&
+        localRoomData.timerState === "PAUSED" &&
+        localRoomData.timer > 0
+      ) {
+        await update(ref(db, "rooms/" + currentRoom), {
+          timerState: "RUNNING",
+        });
+      }
+    }
+
+    if (
+      localRoomData.status === "ACTIVE" &&
+      localRoomData.timerState === "RUNNING" &&
+      localRoomData.timer > 0
+    ) {
+      let newTime = localRoomData.timer - 1;
+      if (newTime <= 0) {
+        await update(ref(db, "rooms/" + currentRoom), {
+          timer: 0,
+          timerState: "STOPPED",
+          status: "TIME_UP",
+        });
+      } else {
+        await update(ref(db, "rooms/" + currentRoom), { timer: newTime });
+      }
+    }
+  }, 1000);
+}
+
+// ================= تحديث الواجهة الرسومية الديناميكية =================
+function updateUI() {
+  const data = localRoomData;
+  if (data.showWinner) return renderWinner(data.players, data.adminToken);
+
+  const imgContainer = document.getElementById("imageContainer");
+  if (data.questionImage) {
+    document.getElementById("displayImg").src = data.questionImage;
+    imgContainer.classList.remove("hidden");
+  } else {
+    imgContainer.classList.add("hidden");
+  }
+
+  const qDisplay = document.getElementById("questionDisplay");
+  qDisplay.className =
+    "text-2xl text-center font-bold py-6 min-h-[100px] border-b border-slate-700 transition-colors duration-300";
+
+  // معالجة حالة ALL_WRONG الجديدة لعرض لون أحمر فوري
+  if (data.status === "ACTIVE") {
+    qDisplay.textContent = data.currentQuestion;
+    qDisplay.classList.add("status-active");
+  } else if (data.status === "RESOLVED_CORRECT") {
+    qDisplay.textContent =
+      "✅ " + data.currentQuestion + " (تمت الإجابة بشكل صحيح)";
+    qDisplay.classList.add("status-correct");
+  } else if (data.status === "TIME_UP") {
+    qDisplay.textContent = "⌛ انتهى الوقت دون إجابة صحيحة!";
+    qDisplay.classList.add("status-timeup");
+  } else if (data.status === "ALL_WRONG") {
+    qDisplay.textContent =
+      "❌ " + data.currentQuestion + " (لا أحد يمتلك الإجابة الصحيحة!)";
+    qDisplay.classList.add("status-wrong");
+  } else {
+    qDisplay.textContent = data.currentQuestion;
+    qDisplay.classList.add("status-active");
+  }
+
+  document.getElementById("timerDisplay").textContent =
+    data.timer > 0 ? data.timer + "s" : "0s";
+
+  if (isOwner) {
+    // تحديث الحالات المسموح فيها بإرسال سؤال جديد
+    const canSendNew =
+      data.status === "IDLE" ||
+      data.status === "RESOLVED_CORRECT" ||
+      data.status === "TIME_UP" ||
+      data.status === "ALL_WRONG";
+    document.getElementById("nextQBtn").disabled =
+      !canSendNew || questionBank.length === 0;
+
+    const hasCustomText =
+      document.getElementById("newQuestion").value.trim() !== "";
+    document.getElementById("sendBtn").disabled = !canSendNew || !hasCustomText;
+
+    const totalPlayers = data.players
+      ? Object.keys(data.players).length - 1
+      : 0;
+    const totalAttempts = data.attempts ? Object.keys(data.attempts).length : 0;
+
+    // زر الإعادة يظهر فقط لو الوقت انتهى ومفيش حالة (الجميع أخطأ) لأن لو كلهم أخطأوا مفيش حد متاح نعيدله الوقت
+    const canReloadTimer =
+      data.status === "TIME_UP" &&
+      totalAttempts < totalPlayers &&
+      totalPlayers > 0;
+    document
+      .getElementById("reloadTimerBtn")
+      .classList.toggle("hidden", !canReloadTimer);
+  }
+
+  let activePlayerUid = null;
+  let activePlayerName = "";
+  let myQueuePosition = -1;
+
+  if (data.queue) {
+    const sortedQueue = Object.entries(data.queue).sort((a, b) => a[1] - b[1]);
+    activePlayerUid = sortedQueue[0][0];
+    activePlayerName = data.players?.[activePlayerUid]?.displayName || "مشارك";
+
+    const myIndex = sortedQueue.findIndex((q) => q[0] === myUid);
+    if (myIndex !== -1) myQueuePosition = myIndex + 1;
+  }
+
+  if (!isOwner) {
+    const btn = document.getElementById("buzzBtn");
+    const hasAttempted = data.attempts?.[myUid];
+
+    btn.disabled = hasAttempted || data.status !== "ACTIVE";
+
+    const statusMsg = document.getElementById("statusMsg");
+    const queueStatus = document.getElementById("queueStatus");
+    const queuePosition = document.getElementById("queuePosition");
+
+    if (activePlayerUid) {
+      if (activePlayerUid === myUid) {
+        statusMsg.textContent = "🔥 دورك للإجابة الآن! تحدّث سريعاً!";
+        statusMsg.className =
+          "mt-4 text-emerald-400 font-bold text-lg animate-pulse";
+        queueStatus.classList.add("hidden");
+      } else {
+        statusMsg.textContent = `🎤 يجاوب الآن: ${activePlayerName}`;
+        statusMsg.className = "mt-4 text-yellow-400 font-bold";
+        if (myQueuePosition > 1) {
+          queueStatus.classList.remove("hidden");
+          queuePosition.textContent = `ترتيبك الحالي في الطابور: ${myQueuePosition}`;
         } else {
-            await update(roomRef, { buzzerLocked: false, pressedByUid: "", pressedByName: "" });
+          queueStatus.classList.add("hidden");
         }
-    } catch (error) {
-        console.error("Failed to update points:", error);
-        alert("تعذر تحديث النقاط أو لا تملك صلاحية المنظم.");
+      }
+    } else {
+      statusMsg.textContent =
+        data.status === "ACTIVE"
+          ? hasAttempted
+            ? "🚨 استنفذت محاولتك لهذا السؤال!"
+            : "أسرع بالضغط على البازر!"
+          : "استعد.. في انتظار السؤال القادم";
+      statusMsg.className = "mt-4 text-slate-400 font-bold";
+      queueStatus.classList.add("hidden");
     }
+  }
+
+  if (isOwner) {
+    const judgePanel = document.getElementById("judge-actions");
+    if (activePlayerUid && data.status === "ACTIVE") {
+      judgePanel.classList.remove("hidden");
+      judgePanel.classList.add("flex");
+      document.getElementById("whoPressed").textContent =
+        `اللاعب الحالي: ${activePlayerName}`;
+      document.getElementById("queueCount").textContent =
+        `في الانتظار: ${Object.keys(data.queue).length}`;
+    } else {
+      judgePanel.classList.add("hidden");
+      judgePanel.classList.remove("flex");
+    }
+  }
+
+  renderLeaderboard(data.players, data.adminToken);
+}
+
+window.handleFileUpload = function (input) {
+  const file = input.files[0];
+  const sendBtn = document.getElementById("sendBtn");
+  if (file) {
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.innerText = "جاري التجهيز... ⏳";
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert("الصورة كبيرة جداً! الحد الأقصى 2MB.");
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerText = "إرسال السؤال المخصص 🚀";
+      }
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      document.getElementById("questionImage").value = e.target.result;
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerText = "إرسال السؤال المخصص 🚀";
+      }
+      updateUI();
+    };
+    reader.readAsDataURL(file);
+  }
 };
 
-        window.resetBuzzer = function() {
-            return (async () => {
-                try {
-                    const room = await requireAdminRoom();
-                    if (room.showWinner) {
-                        alert("المسابقة انتهت بالفعل. لا يمكن تصفير الجرس بعد إعلان الفائز.");
-                        return;
-                    }
+document.addEventListener("DOMContentLoaded", () => {
+  const qInput = document.getElementById("newQuestion");
+  if (qInput) {
+    qInput.addEventListener("input", () => {
+      if (localRoomData) updateUI();
+    });
+  }
+});
 
-                    await update(ref(db, 'rooms/' + currentRoom), { buzzerLocked: false, pressedByUid: "", pressedByName: "", timer: 0 });
-                    clearInterval(timerInterval);
-                } catch (error) {
-                    console.error("Failed to reset buzzer:", error);
-                    alert("تعذر تصفير الجرس أو لا تملك صلاحية المنظم.");
-                }
-            })();
-        };
+function renderLeaderboard(players, adminUid) {
+  const board = document.getElementById("leaderboard");
+  if (!board) return;
+  board.replaceChildren();
+  if (!players) return;
+  Object.entries(players)
+    .filter(([uid]) => uid !== adminUid)
+    .sort(([, a], [, b]) => (b?.score ?? 0) - (a?.score ?? 0))
+    .forEach(([, pData]) => {
+      const row = document.createElement("div");
+      row.className =
+        "flex justify-between bg-slate-800 p-2 rounded-lg border-l-4 border-blue-500";
+      row.innerHTML = `<span>${safeText(pData?.displayName)}</span><span class="font-bold text-emerald-400">${pData?.score ?? 0}</span>`;
+      board.appendChild(row);
+    });
+}
 
-        function renderLeaderboard(players, adminUid) {
-            const board = document.getElementById('leaderboard');
-            if(!board) return;
-            board.replaceChildren();
-            if(!players) return;
-            Object.entries(players)
-                .filter(([uid]) => uid !== adminUid)
-                .sort(([, a], [, b]) => (b?.score ?? 0) - (a?.score ?? 0))
-                .forEach(([, data]) => {
-                    board.appendChild(renderPlayerRow(data?.displayName || "مشارك", data?.score ?? 0));
-                });
-        }
+window.showWinner = async function () {
+  if (isOwner)
+    await update(ref(db, "rooms/" + currentRoom), { showWinner: true });
+};
 
-        window.showWinner = async function() {
-            try {
-                const room = await requireAdminRoom();
-                if (room.showWinner) {
-                    alert("المسابقة انتهت بالفعل. لا يمكن إعلان الفائز مرة أخرى.");
-                    return;
-                }
+function renderWinner(players, adminUid) {
+  document.getElementById("room-area").classList.add("hidden");
+  document.getElementById("winner-screen").classList.remove("hidden");
+  const rankedPlayers = Object.entries(players || {})
+    .filter(([uid]) => uid !== adminUid)
+    .sort((a, b) => b[1].score - a[1].score);
+  const topScore = rankedPlayers[0]?.[1]?.score ?? 0;
+  const winners = rankedPlayers
+    .filter(([, p]) => (p.score ?? 0) === topScore)
+    .map(([, p]) => p.displayName || "مشارك");
 
-                await update(ref(db, 'rooms/' + currentRoom), { showWinner: true });
-            } catch (error) {
-                console.error("Failed to show winner:", error);
-                alert("تعذر إعلان الفائز أو لا تملك صلاحية المنظم.");
-            }
-        };
-
-        function renderWinner(players, adminUid) {
-            document.getElementById('room-area').classList.add('hidden');
-            document.getElementById('winner-screen').classList.remove('hidden');
-            const rankedPlayers = Object.entries(players || {})
-                .filter(([uid]) => uid !== adminUid)
-                .sort((a,b) => b[1].score - a[1].score);
-            const topScore = rankedPlayers[0]?.[1]?.score ?? 0;
-            const winners = rankedPlayers.filter(([, data]) => (data.score ?? 0) === topScore).map(([, data]) => data.displayName || "مشارك");
-            const winnerName = document.getElementById('winnerName');
-            if (winnerName) {
-                winnerName.replaceChildren();
-                winners.forEach((name) => {
-                    const row = document.createElement('div');
-                    row.textContent = `${name} 🎉`;
-                    winnerName.appendChild(row);
-                });
-            }
-            document.body.style.background = "linear-gradient(to bottom, #1e1b4b, #4338ca)";
-        }
-    
+  const winnerName = document.getElementById("winnerName");
+  winnerName.replaceChildren();
+  winners.forEach((name) => {
+    const row = document.createElement("div");
+    row.textContent = `${name} 🎉`;
+    winnerName.appendChild(row);
+  });
+}

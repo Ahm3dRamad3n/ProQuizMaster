@@ -1,119 +1,296 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏆 Pro Quiz Master</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Genius Competitions🏆</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#000000">
-<link rel="icon" href="./icons/icon-192x192.png">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body class="min-h-screen flex items-center justify-center p-4">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="icon" href="./icons/icon-192x192.png" />
+  </head>
+  <body class="min-h-screen flex items-center justify-center p-4">
+    <div
+      id="main-card"
+      class="glass w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+    >
+      <div id="setup-area" class="space-y-6">
+        <h1 dir="ltr" class="text-4xl font-bold text-center text-yellow-400">
+          Genius Competitions 🏆
+        </h1>
+        <p class="text-center text-slate-400 text-sm">
+          نظام المسابقات التفاعلي الذكي
+        </p>
 
-    <div id="main-card" class="glass w-full max-w-2xl rounded-3xl p-8 shadow-2xl">
-        
-        <div id="setup-area" class="space-y-6">
-            <h1 class="text-4xl font-bold text-center bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">نظام المسابقات الذكي</h1>
-            <input type="text" id="username" placeholder="اسمك المستعار" class="w-full bg-slate-800 border-none rounded-xl p-4 text-white focus:ring-2 focus:ring-blue-500">
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                    <p class="mb-2 text-sm text-slate-400">للمنظمين:</p>
-                    <input type="number" id="maxPlayers" placeholder="عدد المشاركين" class="w-full bg-slate-700 rounded-lg p-2 mb-2">
-                    <input type="number" id="questionTime" placeholder="وقت السؤال (ثانية)" class="w-full bg-slate-700 rounded-lg p-2 mb-2">
-                    <button onclick="createRoom()" class="w-full bg-blue-600 hover:bg-blue-700 transition p-3 rounded-xl font-bold">إنشاء غرفة</button>
-                </div>
-                <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                    <p class="mb-2 text-sm text-slate-400">للمشاركين:</p>
-                    <input type="text" id="roomInput" placeholder="كود الغرفة" class="w-full bg-slate-700 rounded-lg p-2 mb-2 uppercase">
-                    <button onclick="joinRoom()" class="w-full bg-emerald-600 hover:bg-emerald-700 transition p-3 rounded-xl font-bold">انضمام</button>
-                </div>
-            </div>
-        </div>
+        <input
+          type="text"
+          id="username"
+          placeholder="اسمك المستعار"
+          class="w-full bg-slate-800 border-none rounded-xl p-4 text-white focus:ring-2 focus:ring-blue-500"
+        />
 
-        <div id="room-area" class="hidden space-y-6">
-            <div class="flex justify-between items-center">
-                <span id="displayCode" class="bg-blue-500/20 text-blue-400 px-4 py-1 rounded-full text-sm font-mono"></span>
-                <span id="timerDisplay" class="text-2xl font-bold text-yellow-400"></span>
-            </div>
-
-            <div id="imageContainer" class="hidden w-full flex justify-center mb-4">
-                <img id="displayImg" src="" class="max-h-60 rounded-xl shadow-lg border border-slate-700 object-contain bg-slate-900">
-            </div>
-
-            <div id="questionDisplay" class="text-2xl text-center font-bold py-6 min-h-[100px] border-b border-slate-700">
-                انتظار السؤال القادم...
-            </div>
-       <div id="participant-view" class="flex flex-col items-center py-8">
-                <button id="buzzBtn" onclick="pressBuzzer()" class="w-48 h-48 rounded-full bg-emerald-500 text-white text-2xl font-bold shadow-lg hover:scale-105 active:scale-95 transition-all disabled:buzzer-locked">
-                    إجابة!
-                </button>
-                <p id="statusMsg" class="mt-4 text-slate-400">أسرع بالضغط!</p>
-            </div>
-
-            <div id="admin-panel" class="hidden bg-slate-800/80 p-4 md:p-6 rounded-2xl border border-blue-500/30">
-            <div class="space-y-3 mb-4">
-                <input type="text" id="newQuestion" placeholder="اكتب السؤال هنا..." class="w-full bg-slate-700 rounded-lg p-2 text-sm text-right">
-                
-                <div class="flex flex-col md:flex-row md:items-center gap-3">
-                    <input type="text" id="questionImage" placeholder="ضع رابط الصورة هنا..." class="flex-1 bg-slate-700 rounded-lg p-2 text-sm text-right outline-none focus:ring-1 focus:ring-blue-500">
-                    
-                    <span class="hidden md:block text-slate-500 text-xs font-bold">أو</span>
-                    
-                    <div class="flex items-center gap-2">
-                        <span class="md:hidden text-slate-500 text-xs font-bold">أو ارفع ملف:</span>
-                        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileUpload(this)">
-                        <button onclick="document.getElementById('fileInput').click()" class="flex-1 md:flex-none bg-slate-600 hover:bg-slate-500 px-4 py-2 rounded-lg text-xs flex items-center justify-center gap-2 whitespace-nowrap">
-                            📁 رفع صورة
-                        </button>
-                    </div>
-                </div>
-                
-                <button id="sendBtn" onclick="sendQuestion()" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold text-sm transition-all shadow-lg active:scale-95">
-                    إرسال السؤال 🚀
-                </button>
-            </div>
-
-            <div id="judge-actions" class="hidden flex justify-around p-4 bg-slate-900 rounded-xl gap-2">
-                <span id="whoPressed" class="text-yellow-400 text-xs self-center"></span>
-                <button onclick="givePoints(10)" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded text-xs font-bold transition-colors">+10</button>
-                <button onclick="givePoints(-5)" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded text-xs font-bold transition-colors">-5</button>
-                <button onclick="resetBuzzer()" class="bg-slate-600 hover:bg-slate-500 px-4 py-2 rounded text-xs font-bold transition-colors">تصفير</button>
-            </div>
-            
-            <button onclick="showWinner()" class="w-full mt-4 bg-purple-600 hover:bg-purple-700 p-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all">
-                عرض الفائز النهائي 🏆
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
+            <p class="mb-2 text-sm text-blue-400 font-bold">للمنظمين:</p>
+            <input
+              type="number"
+              id="maxPlayers"
+              placeholder="عدد المشاركين"
+              class="w-full bg-slate-700 rounded-lg p-2 mb-2"
+            />
+            <input
+              type="number"
+              id="questionTime"
+              placeholder="وقت السؤال (ثانية)"
+              class="w-full bg-slate-700 rounded-lg p-2 mb-2"
+            />
+            <button
+              onclick="createRoom()"
+              class="w-full bg-blue-600 hover:bg-blue-700 transition p-3 rounded-xl font-bold"
+            >
+              إنشاء غرفة
             </button>
+          </div>
+          <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
+            <p class="mb-2 text-sm text-emerald-400 font-bold">للمشاركين:</p>
+            <input
+              type="text"
+              id="roomInput"
+              placeholder="كود الغرفة"
+              class="w-full bg-slate-700 rounded-lg p-2 mb-2 uppercase text-center tracking-widest font-mono"
+            />
+            <button
+              onclick="joinRoom()"
+              class="w-full bg-emerald-600 hover:bg-emerald-700 transition p-3 rounded-xl font-bold"
+            >
+              انضمام
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="room-area" class="hidden space-y-6">
+        <div
+          class="flex justify-between items-center bg-slate-900/50 p-3 rounded-xl border border-slate-700"
+        >
+          <span
+            id="displayCode"
+            class="bg-blue-500/20 text-blue-400 px-4 py-1 rounded-full text-sm font-mono tracking-widest font-bold"
+          ></span>
+          <div class="flex items-center gap-2">
+            <button
+              id="reloadTimerBtn"
+              onclick="reloadTimer()"
+              class="hidden bg-yellow-500 hover:bg-yellow-400 text-slate-900 p-2 rounded-lg transition-all shadow-md font-bold text-sm flex items-center justify-center"
+              title="إعادة بدء الوقت لهذا السؤال"
+            >
+              🔄 إعادة الوقت
+            </button>
+            <span
+              id="timerDisplay"
+              class="text-3xl font-black text-yellow-400 font-mono tracking-tighter"
+            ></span>
+          </div>
         </div>
 
-            <div class="mt-6">
-                <h4 class="text-sm text-slate-500 mb-2">لوحة المتصدرين:</h4>
-                <div id="leaderboard" class="space-y-2"></div>
+        <div id="imageContainer" class="hidden w-full flex justify-center mb-4">
+          <img
+            id="displayImg"
+            src=""
+            class="max-h-60 rounded-xl shadow-lg border border-slate-700 object-contain bg-slate-900"
+          />
+        </div>
+
+        <div
+          id="questionDisplay"
+          class="text-2xl text-center font-bold py-6 min-h-[100px] border-b border-slate-700 transition-colors duration-300"
+        >
+          انتظار السؤال القادم...
+        </div>
+
+        <div id="participant-view" class="flex flex-col items-center py-8">
+          <button
+            id="buzzBtn"
+            onclick="pressBuzzer()"
+            class="w-48 h-48 rounded-full bg-emerald-500 text-white text-3xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all disabled:buzzer-locked disabled:hover:scale-100 flex flex-col items-center justify-center gap-2"
+          >
+            <span>إجابة!</span>
+          </button>
+          <div id="queueStatus" class="mt-6 text-center hidden">
+            <p class="text-yellow-400 font-bold text-lg">
+              أنت في طابور الإجابة ⏳
+            </p>
+            <p id="queuePosition" class="text-sm text-slate-400 mt-1"></p>
+          </div>
+          <p id="statusMsg" class="mt-4 text-slate-400 font-bold">
+            استعد للإجابة!
+          </p>
+        </div>
+
+        <div
+          id="admin-panel"
+          class="hidden bg-slate-800/80 p-4 md:p-6 rounded-2xl border border-blue-500/30 space-y-6"
+        >
+          <div
+            class="space-y-4 bg-slate-900/40 p-4 rounded-xl border border-slate-700"
+          >
+            <h3 class="text-sm font-bold text-blue-400 flex items-center gap-2">
+              📝 إدارة وإضافة الأسئلة
+            </h3>
+
+            <input
+              type="text"
+              id="newQuestion"
+              placeholder="اكتب نص السؤال هنا..."
+              class="w-full bg-slate-700 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-blue-500 text-white"
+            />
+
+            <div class="flex flex-col md:flex-row md:items-center gap-3">
+              <input
+                type="text"
+                id="questionImage"
+                placeholder="رابط الصورة (اختياري)"
+                class="flex-1 bg-slate-700 rounded-lg p-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 text-white"
+              />
+              <span class="hidden md:block text-slate-500 text-xs font-bold"
+                >أو</span
+              >
+              <div class="flex items-center gap-2">
+                <input
+                  type="file"
+                  id="fileInput"
+                  accept="image/*"
+                  class="hidden"
+                  onchange="handleFileUpload(this)"
+                />
+                <button
+                  onclick="document.getElementById('fileInput').click()"
+                  class="flex-1 md:flex-none bg-slate-600 hover:bg-slate-500 px-4 py-2 rounded-lg text-xs flex items-center justify-center gap-2 whitespace-nowrap font-bold"
+                >
+                  📁 رفع صورة
+                </button>
+              </div>
             </div>
+
+            <div class="grid grid-cols-2 gap-3 pt-2">
+              <button
+                id="addToBankBtn"
+                onclick="addQuestionToBank()"
+                class="bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-bold text-sm transition-all shadow-md active:scale-95"
+              >
+                📥 إضافة إلى بنك الأسئلة
+              </button>
+              <button
+                id="sendBtn"
+                onclick="sendQuestion()"
+                disabled
+                class="bg-indigo-600 hover:bg-indigo-500 py-3 rounded-lg font-bold text-sm transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                🚀 أرسل الآن كمخصص
+              </button>
+            </div>
+
+            <div class="pt-4 border-t border-slate-700/60 space-y-3">
+              <h4 class="text-xs font-bold text-slate-400">
+                📚 الأسئلة المجهزة في البنك:
+              </h4>
+              <div
+                id="bankQuestionsList"
+                class="space-y-2 max-h-32 overflow-y-auto pr-2"
+              >
+                <p class="text-xs text-slate-500 text-center py-2">
+                  البنك فارغ. أضف أسئلة أعلاه للبدء.
+                </p>
+              </div>
+              <button
+                id="nextQBtn"
+                onclick="sendNextBankQuestion()"
+                disabled
+                class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-lg font-bold text-sm transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ⏭️ إرسال السؤال التالي من البنك
+              </button>
+            </div>
+          </div>
+
+          <div
+            id="judge-actions"
+            class="hidden flex-col gap-3 p-4 bg-slate-900 rounded-xl border border-yellow-500/30"
+          >
+            <div class="flex justify-between items-center">
+              <span
+                id="whoPressed"
+                class="text-yellow-400 text-sm font-bold"
+              ></span>
+              <span
+                id="queueCount"
+                class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300"
+              ></span>
+            </div>
+            <div class="flex gap-2">
+              <button
+                onclick="givePoints(10)"
+                class="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-sm font-bold transition-colors"
+              >
+                إجابة صحيحة (+10)
+              </button>
+              <button
+                onclick="givePoints(0)"
+                class="flex-1 bg-slate-600 hover:bg-slate-500 py-2 rounded text-sm font-bold transition-colors"
+              >
+                خاطئة بدون خصم (0)
+              </button>
+              <button
+                onclick="givePoints(-5)"
+                class="flex-1 bg-red-600 hover:bg-red-500 py-2 rounded text-sm font-bold transition-colors"
+              >
+                خاطئة مع خصم (-5)
+              </button>
+            </div>
+          </div>
+
+          <button
+            onclick="showWinner()"
+            class="w-full mt-4 bg-purple-600 hover:bg-purple-700 p-3 rounded-lg text-xs font-bold uppercase tracking-widest transition-all"
+          >
+            عرض الفائز النهائي 🏆
+          </button>
         </div>
 
-        <div id="winner-screen" class="hidden text-center space-y-6 py-20">
-            <h1 class="text-6xl winner-anim">👑</h1>
-            <h2 class="text-4xl font-bold">البطل هو:</h2>
-            <div id="winnerName" class="text-5xl text-yellow-400 font-black space-y-2"></div>
-            <button onclick="location.reload()" class="text-blue-400 underline">ابدأ مسابقة جديدة</button>
+        <div class="mt-8 bg-slate-900/50 p-4 rounded-xl">
+          <h4
+            class="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2"
+          >
+            <span>📊</span> لوحة المتصدرين:
+          </h4>
+          <div id="leaderboard" class="space-y-2"></div>
         </div>
+      </div>
+
+      <div
+        id="winner-screen"
+        class="hidden text-center space-y-6 py-20 relative z-10"
+      >
+        <h1 class="text-7xl winner-anim mb-8">👑</h1>
+        <h2 class="text-3xl font-bold text-slate-300">بطل ساحة المعرفة هو:</h2>
+        <div
+          id="winnerName"
+          class="text-5xl text-yellow-400 font-black space-y-4 py-8"
+        ></div>
+        <button
+          onclick="location.reload()"
+          class="bg-blue-600 hover:bg-blue-500 px-8 py-3 rounded-xl font-bold transition-all shadow-lg"
+        >
+          ابدأ مسابقة جديدة
+        </button>
+      </div>
     </div>
+
     <script type="module" src="script.js"></script>
-    <script>
-    if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('./service-worker.js').then(function(registration) {
-        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-        }, function(err) {
-        console.log('ServiceWorker registration failed: ', err);
-        });
-    });
-    }
-    </script>
-</body>
+  </body>
 </html>
