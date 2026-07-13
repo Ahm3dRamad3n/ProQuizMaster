@@ -1,35 +1,35 @@
-<h1 align="center">🏆 Pro Quiz Master</h1>
+<h1 align="center">🏆 Genius Competitions</h1>
 
 <p align="center">
   <strong>An Advanced, Secure, & Real-Time Interactive Quiz System</strong><br>
   <br>
-  <a href="https://ahm3dramad3n.github.io/ProQuizMaster/"><strong>« Live Demo »</strong></a>
+  <a href="https://ahm3dramad3n.github.io/GeniusCompetitions/"><strong>« Live Demo »</strong></a>
 </p>
 
 ---
 
 ## 📖 About The Project
 
-**Pro Quiz Master** is a sophisticated, real-time web application designed to host competitive quizzes. It empowers organizers to create and seamlessly manage quiz rooms, while allowing participants to compete instantly. Powered by a Firebase Real-Time Database and engineered with strict security measures, it ensures zero-latency interactions, fair play, and a highly engaging multiplayer experience.
+**Genius Competitions** (formerly Pro Quiz Master) is a sophisticated, real-time web application designed to host high-stakes competitive quizzes. It empowers organizers to seamlessly manage quiz rooms, prepare question banks, and judge answers, while allowing participants to compete instantly. Powered by a Firebase Real-Time Database and engineered with strict security measures, it features a fair-play Queue System, smart timer management, zero-latency interactions, and a highly engaging multiplayer experience.
 
 ## ✨ Key Features
 
-* ⚡️ **Lightning-Fast Responses:** Real-time updates and synchronization powered by Firebase.
-* 📱 **Progressive Web App (PWA):** Installable on devices with Service Worker integration for a native-like experience.
-* 🎨 **Glassmorphism UI:** A sleek, modern, and visually appealing interface built with Tailwind CSS, featuring smooth animations.
-* 🔒 **Smart Access Control:** Automatically secures the room by blocking new joins once the maximum capacity is reached, the first question is triggered, or if a duplicate name is detected.
-* 🎮 **Full Admin Control:** A dedicated dashboard for the quiz master to push questions, adjust scores (+/- points), and reset player buzzers.
-* 🥇 **Live Leaderboard:** A dynamic scoreboard that updates instantly to broadcast the current standings of all competitors (Admin hidden from players list).
-* 🎉 **Victory Screen:** A celebratory culmination screen highlighting the ultimate champion at the end of the match, locking the game state securely.
+* ⚡️ **Real-Time Queue System (FIFO):** Replaced the basic lock-out buzzer. Players are queued based on the exact millisecond they press the buzzer. If the first player answers incorrectly, the turn instantly passes to the next player in the queue.
+* ⏱️ **Smart Timer Management:** The game timer automatically pauses when a player is answering, resumes if they answer incorrectly, and auto-terminates the round instantly if all active players exhaust their attempts.
+* 📚 **Built-in Question Bank & Dashboard:** Admins can prepare a queue of questions locally and push them sequentially with a single click, or send custom manual questions on the fly.
+* 🖼️ **Multimedia Support:** Rich question formatting allowing Admins to attach image URLs or directly upload local image files to accompany the text.
+* 👨‍⚖️ **Granular Judging Controls:** Admins can award points (+10 for correct), deduct points (-5 for wrong), or mark an answer incorrect without penalty (0), which dynamically updates the queue and player scores.
+* 🎨 **Dynamic UI & Glassmorphism:** A sleek, modern interface built with Tailwind CSS that visually reacts to game states (e.g., Green for resolved correct, Red for all wrong, Yellow for time-up).
+* 📱 **Progressive Web App (PWA):** Installable on mobile and desktop devices with Service Worker integration for a native-like experience.
 
 ## 🛡️ Security & Advanced Architecture
 
-Unlike standard quiz apps, this system is hardened against client-side manipulation and competitive cheating:
-* **Firebase Security Rules:** Strict server-side validation ensuring participants can only mutate specific allowed fields (like triggering the buzzer) while locking critical data like scores and game state strictly to the Room Admin.
-* **Race Condition Prevention:** Utilizes atomic database transactions (`runTransaction`) to guarantee absolute fairness when multiple players press the buzzer in the exact same millisecond.
-* **UID-Based Identity & Anonymous Auth:** Players and Admins are tracked via securely generated UIDs rather than mutable display names, preventing score hijacking and identity spoofing.
+Unlike standard quiz apps, this system is deeply hardened against client-side manipulation and competitive cheating:
+* **Strict Firebase Security Rules:** "Deny by Default" architecture. Participants can only mutate specific allowed fields (like adding themselves to the queue) while critical data like scores, timer state, and game status are strictly locked to the Room Admin.
+* **Race Condition Prevention:** Utilizes atomic database transactions (`runTransaction`) and precise timestamps to maintain a strict First-In-First-Out (FIFO) queue when multiple players press the buzzer in the exact same millisecond.
+* **UID-Based Identity & Anonymous Auth:** Players and Admins are tracked via securely generated Firebase UIDs rather than mutable display names, preventing score hijacking and identity spoofing.
+* **State Machine Logic:** The game operates on strict server-synced states (`IDLE`, `ACTIVE`, `RESOLVED_CORRECT`, `ALL_WRONG`, `TIME_UP`), preventing actions out of turn.
 * **Anti-XSS Protection:** Safe DOM rendering using `createElement` and `textContent` to neutralize any Cross-Site Scripting (XSS) payload attempts via user input.
-* **API Key Hardening:** Cloud console restrictions applied to ensure database connections are only accepted from the authorized production domain.
 
 ## 🛠️ Tech Stack
 
